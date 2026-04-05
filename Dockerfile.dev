@@ -1,0 +1,23 @@
+FROM mirror.gcr.io/library/python:3.13-slim-bullseye AS base
+
+# Build dependencies
+ARG BUILD_DEPS="git curl libgl1-mesa-glx libglib2.0-0 htop make libmagic1 gcc"
+RUN apt-get update && apt-get install -y $BUILD_DEPS
+
+# Install poetry
+ADD https://install.python-poetry.org /install-poetry.sh
+RUN POETRY_VERSION=1.8.1 POETRY_HOME=/root/poetry python3 /install-poetry.sh
+ENV PATH="${PATH}:/root/poetry/bin"
+
+WORKDIR /opt/blog
+
+# Install python dependencies (including dev dependencies)
+COPY pyproject.toml ./
+RUN poetry config virtualenvs.create false && \
+    poetry install --no-interaction --no-ansi --no-root
+
+# Copy the rest of the application
+COPY . .
+
+RUN chmod +x run.sh
+CMD ["./run.sh"]

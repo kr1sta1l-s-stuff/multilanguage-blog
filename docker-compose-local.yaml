@@ -1,0 +1,69 @@
+version: "3.8"
+
+services:
+  blog-db:
+    container_name: "blog-db"
+    image: mirror.gcr.io/library/postgres:17-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=blog-db
+    ports:
+      - "5439:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - blog-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  blog-redis:
+    container_name: "blog-redis"
+    image: mirror.gcr.io/library/redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - blog-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # API Service
+  blog-api-service:
+    container_name: "blog-api-service"
+    image: blog-api-service
+    env_file:
+      - .env
+    depends_on:
+      blog-db:
+        condition: service_healthy
+      blog-redis:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    command: ./run.sh
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/opt/blog
+    networks:
+      - blog-network
+    restart: unless-stopped
+
+volumes:
+  minio_data:
+    driver: local
+  postgres_data:
+    driver: local
+
+networks:
+  blog-network:
+    external: true

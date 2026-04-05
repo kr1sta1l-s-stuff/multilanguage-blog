@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "blog"
+version = "0.0.1"
+description = "simple blog api service"
+authors = ["kr1sta1l"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+fastapi = {extras = ["standard"], version = "^0.135.2"}
+sqlalchemy = "^2.0.48"
+asyncpg = "^0.31.0"
+alembic = "^1.18.4"
+pyjwt = "^2.12.1"
+pwdlib = {extras = ["argon2"], version = "^0.3.0"}
+redis = {extras = ["hiredis"], version = "^7.4.0"}
+pydantic-settings = "^2.13.1"
+fastapi-pagination = "^0.15.11"
+uuid-utils = "^0.14.1"
+
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "^7.3.0"
+isort = "^8.0.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
