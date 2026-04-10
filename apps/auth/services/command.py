@@ -25,7 +25,7 @@ class AuthCommandService:
         if await self._query.get_by_username(data.username):
             raise UserError.USERNAME_TAKEN
 
-        user = await self._command.create_user(data.username, data.name)
+        user = await self._command.create_user(data.username)
         await self._command.create_password(user.id, hash_password(data.password))
         await self.session.commit()
         await self.session.refresh(user)

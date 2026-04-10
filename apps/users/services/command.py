@@ -10,8 +10,8 @@ class UserCommandService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create_user(self, username: str, name: str) -> User:
-        user = User(username=username, name=name)
+    async def create_user(self, username: str) -> User:
+        user = User(username=username)
         self.session.add(user)
         await self.session.flush()
         return user

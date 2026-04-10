@@ -30,5 +30,13 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_days: int = 30
 
+    max_images_per_publication: int = 10
+
+    s3_endpoint_url: str
+    s3_access_key: str
+    s3_secret_key: str
+    s3_bucket: str
+    s3_public_url: str
+
 
 settings = Settings()

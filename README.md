@@ -20,4 +20,5 @@ make start
 4. Создать миграции (в уже запущенном контейнере):
 ```bash
 poetry run alembic revision --autogenerate -m "описание миграции"
+alembic upgrade head
 ```

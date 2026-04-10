@@ -17,6 +17,7 @@ redis = {extras = ["hiredis"], version = "^7.4.0"}
 pydantic-settings = "^2.13.1"
 fastapi-pagination = "^0.15.11"
 uuid-utils = "^0.14.1"
+aioboto3 = "^15.5.0"
 
 
 [tool.poetry.group.dev.dependencies]
