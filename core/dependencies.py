@@ -1,4 +1,5 @@
 import uuid
+from typing import Callable
 
 import jwt
 from fastapi import Depends
@@ -9,6 +10,7 @@ from apps.auth.exceptions import AuthError
 from apps.users.exceptions import UserError
 from apps.users.models.user import User
 from apps.users.services.query import UserQueryService
+from core.base_service import AbstractBaseService
 from core.database import get_session
 from core.security import decode_token
 
@@ -34,3 +36,23 @@ async def get_current_user(
         raise UserError.NOT_FOUND
 
     return user
+
+
+def get_command_query_service(
+    command_query_type: type[AbstractBaseService]
+) -> Callable[[AsyncSession], AbstractBaseService]:
+    """
+    Creates and returns a service that handles commands or queries
+    based on the specified `command_query_type`.
+
+    Args:
+        command_query_type: The service class to be created. This class should inherit from
+            the abstract base class `AbstractBaseService`
+
+    Returns:
+        Created specified class to access database
+    """
+    def _get_service(session: AsyncSession = Depends(get_session)) -> AbstractBaseService:
+        return command_query_type(session)
+
+    return _get_service

@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, query_expression, relationship
 
 from core.models import Base, SoftDeleteMixin, UUIDMixin
@@ -12,6 +13,9 @@ class Publication(Base, UUIDMixin, SoftDeleteMixin):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), server_default=None, nullable=True
+    )
 
     author: Mapped["User"] = relationship(  # noqa: F821
         "User",
@@ -42,7 +46,11 @@ class PublicationImages(Base, UUIDMixin, SoftDeleteMixin):
 class Comment(Base, UUIDMixin, SoftDeleteMixin):
     __tablename__ = "comments"
 
-    content: Mapped[str] = mapped_column(Text, nullable=False)
+    __table_args__ = (
+        CheckConstraint("LENGTH(content) <= 2048", name="check_content_length"),
+    )
+
+    content: Mapped[str] = mapped_column(String(2048), nullable=False)
     author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     publication_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("publications.id"), nullable=False)
 

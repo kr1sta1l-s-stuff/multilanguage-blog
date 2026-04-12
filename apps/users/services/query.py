@@ -1,16 +1,12 @@
 import uuid
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from apps.users.models.password import Password
 from apps.users.models.user import User
+from core.base_service import AbstractBaseService
 from core.database import select
 
 
-class UserQueryService:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-
+class UserQueryService(AbstractBaseService):
     async def get_by_id(self, user_id: uuid.UUID) -> User | None:
         result = await self.session.execute(
             select(User).where(User.id == user_id)
