@@ -21,8 +21,10 @@ class PublicationResponse(BaseModel):
     content: str
     images: list[PublicationImageResponse]
     comments_count: int
+    likes_count: int
     created_at: datetime
     published_at: datetime | None
+    is_liked: bool
 
 
 class PublicationListResponse(PublicationResponse):

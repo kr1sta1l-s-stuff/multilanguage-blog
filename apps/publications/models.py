@@ -31,6 +31,13 @@ class Publication(Base, UUIDMixin, SoftDeleteMixin):
     )
     comments_count: Mapped[int] = query_expression()
 
+    likes: Mapped[list["Like"]] = relationship(
+        "Like",
+        back_populates="publication"
+    )
+    likes_count: Mapped[int] = query_expression()
+    is_liked: Mapped[bool] = query_expression()
+
 
 class PublicationImages(Base, UUIDMixin, SoftDeleteMixin):
     __tablename__ = "publication_images"
@@ -61,4 +68,20 @@ class Comment(Base, UUIDMixin, SoftDeleteMixin):
     publication: Mapped["Publication"] = relationship(
         "Publication",
         back_populates="comments"
+    )
+
+
+class Like(Base, UUIDMixin, SoftDeleteMixin):
+    __tablename__ = "likes"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    publication_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("publications.id"), nullable=False)
+
+    user: Mapped["User"] = relationship(
+        "User",
+        back_populates="likes"
+    )
+    publication: Mapped["Publication"] = relationship(
+        "Publication",
+        back_populates="likes"
     )

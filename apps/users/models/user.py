@@ -28,6 +28,10 @@ class User(Base, UUIDMixin, SoftDeleteMixin):
         "Comment",
         back_populates="author"
     )
+    likes: Mapped[list["Like"]] = relationship(  # noqa: F821
+        "Like",
+        back_populates="user"
+    )
 
     def has_right(self, right: UserRights) -> bool:
         return (self.rights & right.value) != 0

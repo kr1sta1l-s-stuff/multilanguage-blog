@@ -26,6 +26,8 @@ class PublicationCommandService(AbstractBaseService):
         await self.session.commit()
         await self.session.refresh(publication, ["images"])
         publication.comments_count = 0
+        publication.likes_count = 0
+        publication.is_liked = False
         return publication
 
     async def delete(self, publication_id: uuid.UUID) -> None:

@@ -14,7 +14,7 @@ from apps.users.enums import UserRights
 from apps.users.models.user import User
 from core.config import settings
 from core.database import get_session
-from core.dependencies import get_command_query_service, get_current_user
+from core.dependencies import get_command_query_service, get_current_user, get_current_user_optional
 from core.schemas import ErrorResponse
 from core.storage import S3Service, get_s3
 
@@ -37,8 +37,10 @@ async def get_publications(
     query_service: PublicationQueryService = Depends(
         get_command_query_service(PublicationQueryService)
     ),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
-    return await paginate(session, await query_service.get_all_published())
+    user_id = current_user.id if current_user else None
+    return await paginate(session, await query_service.get_all_published(user_id))
 
 
 @publications_router.post(
@@ -99,8 +101,10 @@ async def get_publication(
     query_service: PublicationQueryService = Depends(
         get_command_query_service(PublicationQueryService)
     ),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
-    publication = await query_service.get_by_id(publication_id)
+    user_id = current_user.id if current_user else None
+    publication = await query_service.get_by_id(publication_id, user_id)
     if publication is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
