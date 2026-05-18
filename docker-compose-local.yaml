@@ -99,6 +99,24 @@ services:
       - blog-network
     restart: unless-stopped
 
+  # Frontend
+  blog-frontend:
+    container_name: "blog-frontend"
+    image: blog-frontend
+    build:
+      context: ./frontend
+      dockerfile: ./Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - blog-api-service
+    networks:
+      - blog-network
+    restart: unless-stopped
+
 volumes:
   minio_data:
     driver: local

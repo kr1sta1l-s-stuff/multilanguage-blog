@@ -1,10 +1,10 @@
-import uuid
-
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.publications.api.dependencies import get_publication_or_404
+from apps.publications.models import Publication
 from apps.publications.schemas.responses import PublicationListResponse, PublicationResponse
 from apps.publications.services.publication import (
     PublicationCommandService,
@@ -97,19 +97,8 @@ async def create_publication(
     },
 )
 async def get_publication(
-    publication_id: uuid.UUID,
-    query_service: PublicationQueryService = Depends(
-        get_command_query_service(PublicationQueryService)
-    ),
-    current_user: User | None = Depends(get_current_user_optional),
+    publication: Publication = Depends(get_publication_or_404),
 ):
-    user_id = current_user.id if current_user else None
-    publication = await query_service.get_by_id(publication_id, user_id)
-    if publication is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Publication not found",
-        )
     return publication
 
 
@@ -128,28 +117,16 @@ async def get_publication(
     },
 )
 async def delete_publication(
-    publication_id: uuid.UUID,
+    publication: Publication = Depends(get_publication_or_404),
     current_user: User = Depends(get_current_user),
-    query_service: PublicationQueryService = Depends(
-        get_command_query_service(PublicationQueryService)
-    ),
     command_service: PublicationCommandService = Depends(
         get_command_query_service(PublicationCommandService)
     ),
 ):
-    publication = await query_service.get_by_id(publication_id)
     if publication.author_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not allowed to delete this publication",
         )
-
-    try:
-        await command_service.delete(publication_id)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
-
+    await command_service.delete(publication)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

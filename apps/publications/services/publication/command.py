@@ -3,7 +3,6 @@ from datetime import datetime
 
 from apps.publications.models import Publication, PublicationImages
 from core.base_service import AbstractBaseService
-from core.database import select
 
 
 class PublicationCommandService(AbstractBaseService):
@@ -30,12 +29,6 @@ class PublicationCommandService(AbstractBaseService):
         publication.is_liked = False
         return publication
 
-    async def delete(self, publication_id: uuid.UUID) -> None:
-        publication = (await self.session.execute(
-            select(Publication).where(Publication.id == publication_id)
-        )).scalar_one_or_none()
-        if publication is None:
-            raise ValueError("Publication not found")
+    async def delete(self, publication: Publication) -> None:
         publication.deleted_at = datetime.now()
-        await self.session.add(publication)
         await self.session.commit()

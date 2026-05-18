@@ -60,6 +60,12 @@ class Comment(Base, UUIDMixin, SoftDeleteMixin):
     content: Mapped[str] = mapped_column(String(2048), nullable=False)
     author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     publication_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("publications.id"), nullable=False)
+    thread_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("comments.id"), nullable=True
+    )
+    replied_at: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("comments.id"), nullable=True
+    )
 
     author: Mapped["User"] = relationship(  # noqa: F821
         "User",
@@ -69,6 +75,10 @@ class Comment(Base, UUIDMixin, SoftDeleteMixin):
         "Publication",
         back_populates="comments"
     )
+
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
 
 
 class Like(Base, UUIDMixin, SoftDeleteMixin):

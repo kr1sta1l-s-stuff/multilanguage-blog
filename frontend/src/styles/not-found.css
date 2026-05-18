@@ -1,0 +1,14 @@
+.not-found-page {
+  text-align: center;
+  padding: 4rem 0;
+}
+
+.not-found-page h1 {
+  font-size: 4rem;
+  color: var(--color-muted-heavy);
+}
+
+.not-found-page p {
+  margin: 1rem 0;
+  color: var(--color-text-secondary);
+}

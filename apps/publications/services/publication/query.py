@@ -38,22 +38,26 @@ class PublicationQueryService(AbstractBaseService):
                 user_id,
             )
         )
-        return result.scalar_one_or_none()
+        return result.unique().scalar_one_or_none()
 
     @staticmethod
     def _enrich_publication_with_comments_count(query: Select) -> Select:
         comments_count_subquery = (
             select(func.count(Comment.id))
             .where(Comment.publication_id == Publication.id)
+            .where(Comment.deleted_at.is_(None))
             .scalar_subquery()
         )
         return query.options(with_expression(Publication.comments_count, comments_count_subquery))
 
     @staticmethod
     def _enrich_publication_with_likes_count(query: Select) -> Select:
+        # core.database.select auto-filters soft-deleted only when called on a model class;
+        # here we pass func.count(...), so deleted_at must be filtered explicitly.
         likes_count_subquery = (
             select(func.count(Like.id))
             .where(Like.publication_id == Publication.id)
+            .where(Like.deleted_at.is_(None))
             .scalar_subquery()
         )
         return query.options(with_expression(Publication.likes_count, likes_count_subquery))
