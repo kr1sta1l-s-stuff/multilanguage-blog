@@ -13,13 +13,27 @@ class PublicationImageResponse(BaseModel):
     image_url: str
 
 
+class TagResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    slug: str
+
+
+class RelatedTagResponse(TagResponse):
+    count: int
+
+
 class PublicationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     title: str
     content: str
+    author_id: uuid.UUID
     images: list[PublicationImageResponse]
+    tags: list[TagResponse] = []
     comments_count: int
     likes_count: int
     created_at: datetime

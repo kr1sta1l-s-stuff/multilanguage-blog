@@ -15,11 +15,23 @@ export interface PublicationImage {
   image_url: string;
 }
 
+export interface Tag {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface RelatedTag extends Tag {
+  count: number;
+}
+
 export interface Publication {
   id: string;
   title: string;
   content: string;
+  author_id: string;
   images: PublicationImage[];
+  tags: Tag[];
   comments_count: number;
   likes_count: number;
   is_liked: boolean;

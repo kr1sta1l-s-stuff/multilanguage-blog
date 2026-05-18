@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import HeaderSearch from './HeaderSearch';
+import HeaderTags from './HeaderTags';
+
+const CAN_PUBLISH = 1;
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const canPublish = !!user && (user.rights & CAN_PUBLISH) !== 0;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +41,12 @@ export default function Layout() {
     <div className="app">
       <header className="header">
         <nav className="nav">
-          <Link to="/publications" className="nav-brand">safespace</Link>
+          <Link to="/publications" className="nav-brand">
+            <img src="/favicon.svg" alt="" className="nav-brand-icon" />
+            safespace
+          </Link>
+          <HeaderSearch />
+          <HeaderTags />
           <div className="nav-links">
             {user ? (
               <div className="nav-user-menu" ref={menuRef}>
@@ -51,6 +61,29 @@ export default function Layout() {
                 </button>
                 {menuOpen && (
                   <div className="nav-user-dropdown" role="menu">
+                    {canPublish && (
+                      <button
+                        type="button"
+                        className="nav-user-dropdown-item"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          navigate('/publications?create=1');
+                        }}
+                      >
+                        Создать публикацию
+                      </button>
+                    )}
+                    {canPublish && (
+                      <Link
+                        to="/drafts"
+                        className="nav-user-dropdown-item"
+                        role="menuitem"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Мои черновики
+                      </Link>
+                    )}
                     <button
                       type="button"
                       className="nav-user-dropdown-item"

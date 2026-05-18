@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
+import axios from 'axios';
 import type { Publication } from '../api/types';
 import { createPublication } from '../api/publications';
 import ImagePicker from './ImagePicker';
+import TagInput from './TagInput';
 
 interface Props {
   onClose: () => void;
@@ -12,6 +14,7 @@ export default function CreatePublicationModal({ onClose, onCreated }: Props) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [images, setImages] = useState<File[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [publishImmediately, setPublishImmediately] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -46,10 +49,17 @@ export default function CreatePublicationModal({ onClose, onCreated }: Props) {
         content.trim(),
         images,
         publishImmediately,
+        tags,
       );
       onCreated(publication);
-    } catch {
-      setError('Не удалось создать публикацию.');
+    } catch (err) {
+      let message = 'Не удалось создать публикацию.';
+      if (axios.isAxiosError(err)) {
+        const detail = err.response?.data?.detail;
+        if (typeof detail === 'string') message = detail;
+        else if (Array.isArray(detail) && detail[0]?.msg) message = detail[0].msg;
+      }
+      setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -58,7 +68,10 @@ export default function CreatePublicationModal({ onClose, onCreated }: Props) {
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal-content">
-        <button className="modal-close" onClick={onClose}>&times;</button>
+        <div className="modal-header">
+          <button className="modal-close" onClick={onClose}>&times;</button>
+        </div>
+        <div className="modal-scroll">
         <h1>Новая публикация</h1>
         <form onSubmit={handleSubmit} className="create-publication-form">
           <label className="create-publication-field">
@@ -84,6 +97,10 @@ export default function CreatePublicationModal({ onClose, onCreated }: Props) {
             <span>Изображения</span>
             <ImagePicker images={images} onChange={setImages} />
           </div>
+          <div className="create-publication-field">
+            <span>Теги</span>
+            <TagInput tags={tags} onChange={setTags} />
+          </div>
           <label className="create-publication-checkbox">
             <input
               type="checkbox"
@@ -102,6 +119,7 @@ export default function CreatePublicationModal({ onClose, onCreated }: Props) {
             </button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   );

@@ -4,15 +4,26 @@ import PhotoCarousel from './PhotoCarousel';
 import PrettifyCount, { FormatDateTime } from './Utils';
 import { likePublication, unlikePublication } from '../api/publications';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
+import { copyShareLink } from '../utils/copyShareLink';
 
 interface Props {
   publication: Publication;
   onOpen: () => void;
+  onTagClick?: (slug: string) => void;
 }
 
-export default function PublicationCard({ publication, onOpen }: Props) {
+export default function PublicationCard({ publication, onOpen, onTagClick }: Props) {
   const { user } = useAuth();
+  const { toast, showToast } = useToast();
   const date = FormatDateTime(publication.created_at);
+
+  const handleCopyLink = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/publications/${publication.id}`;
+    const ok = await copyShareLink(url);
+    if (ok) showToast('Ссылка скопирована');
+  };
   const contentRef = useRef<HTMLParagraphElement>(null);
   const [clamped, setClamped] = useState(false);
   const [isLiked, setIsLiked] = useState(publication.is_liked);
@@ -84,6 +95,23 @@ export default function PublicationCard({ publication, onOpen }: Props) {
             </button>
           )}
         </div>
+        {publication.tags && publication.tags.length > 0 && (
+          <div className="publication-tags">
+            {publication.tags.map((tag) => (
+              <button
+                key={tag.id}
+                type="button"
+                className="tag-chip tag-chip-clickable"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTagClick?.(tag.slug);
+                }}
+              >
+                {tag.name}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="publication-meta">
           <div className="publication-meta-actions">
             <button
@@ -111,9 +139,17 @@ export default function PublicationCard({ publication, onOpen }: Props) {
               </span>
             </div>
           </div>
-          <span className="publication-date">{date}</span>
+          <button
+            type="button"
+            className="publication-date publication-date-button"
+            onClick={handleCopyLink}
+            title="Скопировать ссылку на публикацию"
+          >
+            {date}
+          </button>
         </div>
       </div>
+      {toast}
     </article>
   );
 }

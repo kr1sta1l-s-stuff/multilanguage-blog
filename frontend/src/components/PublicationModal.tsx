@@ -6,7 +6,11 @@ import CommentList from './CommentList';
 import CommentForm, { type ReplyTarget } from './CommentForm';
 import Pagination from './Pagination';
 import PhotoCarousel from './PhotoCarousel';
+import PublicationActionsMenu from './PublicationActionsMenu';
+import EditPublicationModal from './EditPublicationModal';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
+import { copyShareLink } from '../utils/copyShareLink';
 import PrettifyCount, { FormatDateTime } from './Utils';
 
 interface Props {
@@ -24,6 +28,19 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
   const [error, setError] = useState('');
   const [likePending, setLikePending] = useState(false);
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
+  const [editing, setEditing] = useState(false);
+  const { toast, showToast } = useToast();
+
+  const isAuthor = !!user && !!publication && publication.author_id === user.id;
+  const shareUrl = publication
+    ? `${window.location.origin}/publications/${publication.id}`
+    : '';
+
+  const handleCopyLink = async () => {
+    if (!publication) return;
+    const ok = await copyShareLink(shareUrl);
+    if (ok) showToast('Ссылка скопирована');
+  };
 
   const handleLikeClick = async () => {
     if (!user || !publication || likePending) return;
@@ -132,8 +149,25 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
 
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
-      <div className="modal-content">
-        <button className="modal-close" onClick={onClose}>&times;</button>
+      <div className="modal-frame">
+        <button
+          className="modal-close modal-close-outside"
+          onClick={onClose}
+          aria-label="Закрыть"
+        >
+          &times;
+        </button>
+        <div className="modal-content">
+        <div className="modal-header">
+          {publication && (
+            <PublicationActionsMenu
+              canEdit={isAuthor}
+              onEdit={() => setEditing(true)}
+              shareUrl={shareUrl}
+              onCopied={() => showToast('Ссылка скопирована')}
+            />
+          )}
+        </div>
         <div className="modal-scroll">
         {loading && <p>Loading...</p>}
         {error && <p className="error">{error}</p>}
@@ -141,9 +175,14 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
           <>
             <article>
               <h1>{publication.title}</h1>
-              <p className="publication-date">
+              <button
+                type="button"
+                className="publication-date publication-date-button"
+                onClick={handleCopyLink}
+                title="Скопировать ссылку на публикацию"
+              >
                 {FormatDateTime(publication.created_at)}
-              </p>
+              </button>
               <PhotoCarousel
                 images={publication.images}
                 className="publication-modal-carousel"
@@ -152,6 +191,15 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
                 enableFullscreen
               />
               <div className="publication-body">{publication.content}</div>
+              {publication.tags && publication.tags.length > 0 && (
+                <div className="publication-tags">
+                  {publication.tags.map((tag) => (
+                    <span key={tag.id} className="tag-chip tag-chip-clickable">
+                      {tag.name}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="publication-meta">
                 <div className="publication-meta-actions">
                   <button
@@ -206,7 +254,32 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
           </>
         )}
         </div>
+        </div>
       </div>
+      {editing && publication && (
+        <EditPublicationModal
+          publication={publication}
+          onClose={() => setEditing(false)}
+          onUpdated={(updated) => {
+            setPublication((prev) =>
+              prev
+                ? {
+                    ...updated,
+                    comments_count: prev.comments_count,
+                    likes_count: prev.likes_count,
+                    is_liked: prev.is_liked,
+                  }
+                : updated,
+            );
+            setEditing(false);
+          }}
+          onDeleted={() => {
+            setEditing(false);
+            onClose();
+          }}
+        />
+      )}
+      {toast}
     </div>
   );
 }

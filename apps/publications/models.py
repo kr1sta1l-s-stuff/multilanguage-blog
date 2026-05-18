@@ -1,10 +1,34 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, query_expression, relationship
 
 from core.models import Base, SoftDeleteMixin, UUIDMixin
+
+
+class PublicationTag(Base):
+    __tablename__ = "publication_tags"
+    __table_args__ = (
+        Index("ix_publication_tags_tag_id", "tag_id"),
+    )
+
+    publication_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("publications.id"), primary_key=True
+    )
+    tag_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tags.id"), primary_key=True
+    )
+
+
+class Tag(Base, UUIDMixin):
+    __tablename__ = "tags"
+
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    slug: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class Publication(Base, UUIDMixin, SoftDeleteMixin):
@@ -37,6 +61,10 @@ class Publication(Base, UUIDMixin, SoftDeleteMixin):
     )
     likes_count: Mapped[int] = query_expression()
     is_liked: Mapped[bool] = query_expression()
+
+    tags: Mapped[list["Tag"]] = relationship(
+        "Tag", secondary="publication_tags", lazy="raise"
+    )
 
 
 class PublicationImages(Base, UUIDMixin, SoftDeleteMixin):

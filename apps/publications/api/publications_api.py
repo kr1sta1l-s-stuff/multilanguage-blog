@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.publications.api.dependencies import get_publication_or_404
 from apps.publications.models import Publication
+from apps.publications.schemas.requests import PublicationUpdateRequest
 from apps.publications.schemas.responses import PublicationListResponse, PublicationResponse
 from apps.publications.services.publication import (
     PublicationCommandService,
@@ -33,6 +34,8 @@ publications_router = APIRouter(tags=["publications"])
     },
 )
 async def get_publications(
+    tags: list[str] | None = Query(default=None),
+    q: str | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
     query_service: PublicationQueryService = Depends(
         get_command_query_service(PublicationQueryService)
@@ -40,7 +43,24 @@ async def get_publications(
     current_user: User | None = Depends(get_current_user_optional),
 ):
     user_id = current_user.id if current_user else None
-    return await paginate(session, await query_service.get_all_published(user_id))
+    return await paginate(
+        session,
+        await query_service.get_all_published(user_id, tags, q),
+    )
+
+
+@publications_router.get(
+    "/drafts",
+    response_model=Page[PublicationListResponse],
+)
+async def get_drafts(
+    session: AsyncSession = Depends(get_session),
+    query_service: PublicationQueryService = Depends(
+        get_command_query_service(PublicationQueryService)
+    ),
+    current_user: User = Depends(get_current_user),
+):
+    return await paginate(session, await query_service.get_drafts(current_user.id))
 
 
 @publications_router.post(
@@ -63,6 +83,7 @@ async def create_publication(
     content: str = Form(...),
     images: list[UploadFile] = File(default=[]),
     publish_immediately: bool = Form(default=True),
+    tags: list[str] = Form(default=[]),
     s3: S3Service = Depends(get_s3),
     current_user: User = Depends(get_current_user),
     command_service: PublicationCommandService = Depends(
@@ -86,6 +107,44 @@ async def create_publication(
         urls,
         current_user.id,
         publish_immediately,
+        tags=tags,
+    )
+
+
+@publications_router.patch(
+    "/{publication_id}",
+    response_model=PublicationResponse,
+    responses={
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "You are not allowed to update this publication",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Publication not found",
+        },
+    },
+)
+async def update_publication(
+    payload: PublicationUpdateRequest,
+    publication: Publication = Depends(get_publication_or_404),
+    current_user: User = Depends(get_current_user),
+    command_service: PublicationCommandService = Depends(
+        get_command_query_service(PublicationCommandService)
+    ),
+):
+    if publication.author_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to update this publication",
+        )
+    return await command_service.update(
+        publication,
+        title=payload.title,
+        content=payload.content,
+        tags=payload.tags,
+        unset_tags=payload.tags is not None,
+        publish=payload.publish,
     )
 
 
