@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import type { Publication } from '../api/types';
 import { deletePublication, updatePublication } from '../api/publications';
+import ImagePicker, { type PickerItem } from './ImagePicker';
 import TagInput from './TagInput';
+import { useT } from '../hooks/useT';
 
 interface Props {
   publication: Publication;
@@ -12,9 +14,13 @@ interface Props {
 }
 
 export default function EditPublicationModal({ publication, onClose, onUpdated, onDeleted }: Props) {
+  const t = useT();
   const [title, setTitle] = useState(publication.title);
   const [content, setContent] = useState(publication.content);
-  const [tags, setTags] = useState<string[]>(publication.tags.map((t) => t.name));
+  const [tags, setTags] = useState<string[]>(publication.tags.map((tag) => tag.name));
+  const [images, setImages] = useState<PickerItem[]>(
+    publication.images.map((img) => ({ kind: 'existing', id: img.id, url: img.image_url })),
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -59,10 +65,15 @@ export default function EditPublicationModal({ publication, onClose, onUpdated, 
         content: content.trim(),
         tags,
         publish: opts.publish,
+        images: images.map((item) =>
+          item.kind === 'existing'
+            ? { kind: 'existing', id: item.id }
+            : { kind: 'new', file: item.file },
+        ),
       });
       onUpdated(updated);
     } catch (err) {
-      handleError(err, 'Не удалось сохранить публикацию.');
+      handleError(err, t('publicationForm.saveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -70,14 +81,14 @@ export default function EditPublicationModal({ publication, onClose, onUpdated, 
 
   const handleDelete = async () => {
     if (submitting) return;
-    if (!window.confirm('Удалить публикацию безвозвратно?')) return;
+    if (!window.confirm(t('publicationForm.deleteConfirm'))) return;
     setSubmitting(true);
     setError('');
     try {
       await deletePublication(publication.id);
       onDeleted(publication.id);
     } catch (err) {
-      handleError(err, 'Не удалось удалить публикацию.');
+      handleError(err, t('publicationForm.deleteFailed'));
       setSubmitting(false);
     }
   };
@@ -89,7 +100,7 @@ export default function EditPublicationModal({ publication, onClose, onUpdated, 
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
         <div className="modal-scroll">
-          <h1>{isDraft ? 'Черновик' : 'Редактирование'}</h1>
+          <h1>{isDraft ? t('publicationForm.draftTitle') : t('publicationForm.editTitle')}</h1>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -98,7 +109,7 @@ export default function EditPublicationModal({ publication, onClose, onUpdated, 
             className="create-publication-form"
           >
             <label className="create-publication-field">
-              <span>Заголовок</span>
+              <span>{t('publicationForm.title')}</span>
               <input
                 type="text"
                 value={title}
@@ -108,7 +119,7 @@ export default function EditPublicationModal({ publication, onClose, onUpdated, 
               />
             </label>
             <label className="create-publication-field">
-              <span>Текст</span>
+              <span>{t('publicationForm.text')}</span>
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
@@ -117,7 +128,11 @@ export default function EditPublicationModal({ publication, onClose, onUpdated, 
               />
             </label>
             <div className="create-publication-field">
-              <span>Теги</span>
+              <span>{t('publicationForm.images')}</span>
+              <ImagePicker items={images} onChange={setImages} />
+            </div>
+            <div className="create-publication-field">
+              <span>{t('publicationForm.tags')}</span>
               <TagInput tags={tags} onChange={setTags} />
             </div>
             {error && <p className="error">{error}</p>}
@@ -128,7 +143,7 @@ export default function EditPublicationModal({ publication, onClose, onUpdated, 
                 onClick={handleDelete}
                 disabled={submitting}
               >
-                Удалить
+                {t('common.delete')}
               </button>
               <div className="create-publication-actions-right">
                 <button
@@ -137,10 +152,10 @@ export default function EditPublicationModal({ publication, onClose, onUpdated, 
                   onClick={onClose}
                   disabled={submitting}
                 >
-                  Отмена
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="btn btn-secondary" disabled={submitting}>
-                  Сохранить
+                  {t('common.save')}
                 </button>
                 {isDraft && (
                   <button
@@ -149,7 +164,7 @@ export default function EditPublicationModal({ publication, onClose, onUpdated, 
                     onClick={() => submit({ publish: true })}
                     disabled={submitting}
                   >
-                    Опубликовать
+                    {t('publicationForm.publish')}
                   </button>
                 )}
               </div>

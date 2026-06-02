@@ -5,11 +5,7 @@ from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.publications.api.dependencies import (
-    get_comment,
-    get_publication_or_404,
-    get_reply_target,
-)
+from apps.publications.api.dependencies import get_comment, get_publication_or_404, get_reply_target
 from apps.publications.models import Comment, Publication
 from apps.publications.schemas.responses import CommentResponse
 from apps.publications.services.comment import CommentCommandService, CommentQueryService
@@ -68,6 +64,31 @@ async def create_comment(
             detail="You are not allowed to comment on this publication",
         )
     return await command_service.create(publication, content, current_user.id, parent)
+
+
+@comments_router.get(
+    "/{comment_id}/thread",
+    response_model=list[CommentResponse],
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Comment not found",
+        },
+    },
+)
+async def get_comment_thread(
+    comment_id: uuid.UUID,
+    query_service: CommentQueryService = Depends(
+        get_command_query_service(CommentQueryService)
+    ),
+) -> list[CommentResponse]:
+    thread = await query_service.get_thread(comment_id)
+    if not thread:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Comment not found",
+        )
+    return thread
 
 
 @comments_router.patch(

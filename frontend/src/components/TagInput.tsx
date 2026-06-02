@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Tag } from '../api/types';
 import { searchTags } from '../api/tags';
+import { useT } from '../hooks/useT';
 
 interface Props {
   tags: string[];
@@ -12,6 +13,7 @@ interface Props {
 const DEFAULT_MAX = 10;
 
 export default function TagInput({ tags, onChange, max = DEFAULT_MAX, placeholder }: Props) {
+  const t = useT();
   const [input, setInput] = useState('');
   const [suggestions, setSuggestions] = useState<Tag[]>([]);
   const [open, setOpen] = useState(false);
@@ -51,7 +53,7 @@ export default function TagInput({ tags, onChange, max = DEFAULT_MAX, placeholde
     if (!trimmed) return;
     if (tags.length >= max) return;
     const lowered = trimmed.toLowerCase();
-    if (tags.some((t) => t.toLowerCase() === lowered)) {
+    if (tags.some((tag) => tag.toLowerCase() === lowered)) {
       setInput('');
       return;
     }
@@ -66,7 +68,7 @@ export default function TagInput({ tags, onChange, max = DEFAULT_MAX, placeholde
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const visible = suggestions.filter(
-      (s) => !tags.some((t) => t.toLowerCase() === s.slug),
+      (s) => !tags.some((tag) => tag.toLowerCase() === s.slug),
     );
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -90,7 +92,7 @@ export default function TagInput({ tags, onChange, max = DEFAULT_MAX, placeholde
   };
 
   const visibleSuggestions = suggestions.filter(
-    (s) => !tags.some((t) => t.toLowerCase() === s.slug),
+    (s) => !tags.some((tag) => tag.toLowerCase() === s.slug),
   );
 
   return (
@@ -103,7 +105,7 @@ export default function TagInput({ tags, onChange, max = DEFAULT_MAX, placeholde
               type="button"
               className="tag-chip-remove"
               onClick={() => remove(i)}
-              aria-label={`Удалить тег ${tag}`}
+              aria-label={t('tagInput.removeTag', { tag })}
             >
               &times;
             </button>
@@ -120,7 +122,7 @@ export default function TagInput({ tags, onChange, max = DEFAULT_MAX, placeholde
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder={tags.length === 0 ? placeholder ?? 'Добавьте тег...' : ''}
+          placeholder={tags.length === 0 ? placeholder ?? t('tagInput.placeholder') : ''}
           disabled={tags.length >= max}
         />
       </div>
@@ -143,7 +145,7 @@ export default function TagInput({ tags, onChange, max = DEFAULT_MAX, placeholde
         </ul>
       )}
       <div className="tag-input-hint">
-        {tags.length}/{max} · Enter или запятая, чтобы добавить
+        {tags.length}/{max} · {t('tagInput.hint')}
       </div>
     </div>
   );

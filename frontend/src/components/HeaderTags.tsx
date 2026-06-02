@@ -2,18 +2,35 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import type { Tag } from '../api/types';
 import { searchTags } from '../api/tags';
+import { useT } from '../hooks/useT';
 
 const PUBLICATIONS_PATH = '/publications';
 
+function detectPlatform(): 'mac' | 'other' | 'mobile' {
+  if (typeof window === 'undefined') return 'other';
+  const coarse = window.matchMedia?.('(pointer: coarse)').matches;
+  const ua = navigator.userAgent;
+  const isMobile = coarse || /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+  if (isMobile) return 'mobile';
+  const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform || '')
+    || /Mac OS X/.test(ua);
+  return isMac ? 'mac' : 'other';
+}
+
 export default function HeaderTags() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [results, setResults] = useState<Tag[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const [platform] = useState(detectPlatform);
+  const resultsRef = useRef<Tag[]>([]);
+  const activeTagsRef = useRef<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -65,12 +82,11 @@ export default function HeaderTags() {
 
   const pickTag = (slug: string) => {
     const currentTags = onPublications ? searchParams.getAll('tags') : [];
-    if (currentTags.includes(slug)) {
-      setOpen(false);
-      return;
-    }
+    const nextTags = currentTags.includes(slug)
+      ? currentTags.filter((t) => t !== slug)
+      : [...currentTags, slug];
     const next = new URLSearchParams();
-    [...currentTags, slug].forEach((t) => next.append('tags', t));
+    nextTags.forEach((t) => next.append('tags', t));
     const q = onPublications ? searchParams.get('q') : null;
     if (q) next.set('q', q);
     navigate(`${PUBLICATIONS_PATH}?${next.toString()}`);
@@ -79,17 +95,67 @@ export default function HeaderTags() {
 
   const activeTags = onPublications ? searchParams.getAll('tags') : [];
 
+  resultsRef.current = results;
+  activeTagsRef.current = activeTags;
+
+  useEffect(() => {
+    if (!open || platform === 'mobile') return;
+    const onShortcut = (e: KeyboardEvent) => {
+      const modifier = platform === 'mac' ? e.metaKey : e.ctrlKey;
+      if (!modifier || e.altKey || e.shiftKey) return;
+      if (e.key < '1' || e.key > '9') return;
+      const index = Number(e.key) - 1;
+      const tag = resultsRef.current[index];
+      if (!tag) return;
+      e.preventDefault();
+      pickTag(tag.slug);
+    };
+    window.addEventListener('keydown', onShortcut);
+    return () => window.removeEventListener('keydown', onShortcut);
+  }, [open, platform]);
+
+  const getItemButtons = () =>
+    Array.from(
+      listRef.current?.querySelectorAll<HTMLButtonElement>('.header-tags-item') ?? [],
+    );
+
+  const onInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      getItemButtons()[0]?.focus();
+    }
+  };
+
+  const onItemKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const buttons = getItemButtons();
+    const current = buttons.indexOf(e.currentTarget);
+    if (e.key === 'ArrowDown') {
+      buttons[Math.min(current + 1, buttons.length - 1)]?.focus();
+    } else if (current <= 0) {
+      inputRef.current?.focus();
+    } else {
+      buttons[current - 1]?.focus();
+    }
+  };
+
+  const shortcutLabel = (index: number) => {
+    if (platform === 'mobile' || index >= 9) return '';
+    return platform === 'mac' ? `⌘ + ${index + 1}` : `Ctrl + ${index + 1}`;
+  };
+
   return (
     <div className="header-tags" ref={containerRef}>
       <button
         type="button"
         className={`header-tags-toggle${open ? ' header-tags-toggle-active' : ''}`}
         onClick={() => setOpen((v) => !v)}
-        aria-label={open ? 'Закрыть теги' : 'Теги'}
+        aria-label={open ? t('tagsHeader.close') : t('tagsHeader.open')}
         aria-expanded={open}
       >
         {open ? (
-          <span className="header-tags-close" aria-hidden="true">&times;</span>
+          <span className="header-tags-close" aria-hidden="true" />
         ) : (
           <img src="/tag.svg" alt="" className="header-tags-icon" />
         )}
@@ -103,7 +169,8 @@ export default function HeaderTags() {
               className="header-tags-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Поиск тегов..."
+              onKeyDown={onInputKeyDown}
+              placeholder={t('tagsHeader.searchPlaceholder')}
             />
             {input && (
               <button
@@ -114,28 +181,32 @@ export default function HeaderTags() {
                   setInput('');
                   inputRef.current?.focus();
                 }}
-                aria-label="Очистить"
+                aria-label={t('tagsHeader.clear')}
               >
                 &times;
               </button>
             )}
           </div>
           {results.length === 0 ? (
-            <p className="header-tags-empty">Ничего не найдено</p>
+            <p className="header-tags-empty">{t('tagsHeader.nothingFound')}</p>
           ) : (
-            <ul className="header-tags-list">
-              {results.map((tag) => {
+            <ul className="header-tags-list" ref={listRef}>
+              {results.map((tag, index) => {
                 const already = activeTags.includes(tag.slug);
+                const shortcut = shortcutLabel(index);
                 return (
                   <li key={tag.id}>
                     <button
                       type="button"
                       className={`header-tags-item${already ? ' header-tags-item-active' : ''}`}
                       onClick={() => pickTag(tag.slug)}
-                      disabled={already}
+                      onKeyDown={onItemKeyDown}
+                      aria-pressed={already}
                     >
                       <span className="header-tags-item-name">{tag.name}</span>
-                      <span className="header-tags-item-slug">{tag.slug}</span>
+                      {shortcut && (
+                        <span className="header-tags-item-shortcut">{shortcut}</span>
+                      )}
                     </button>
                   </li>
                 );

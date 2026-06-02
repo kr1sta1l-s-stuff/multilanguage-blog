@@ -6,10 +6,12 @@ import Pagination from '../components/Pagination';
 import EditPublicationModal from '../components/EditPublicationModal';
 import { FormatDateTime } from '../components/Utils';
 import { useAuth } from '../hooks/useAuth';
+import { useT } from '../hooks/useT';
 
 const CAN_PUBLISH = 1;
 
 export default function DraftsPage() {
+  const t = useT();
   const { user } = useAuth();
   const canPublish = !!user && (user.rights & CAN_PUBLISH) !== 0;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -24,7 +26,7 @@ export default function DraftsPage() {
     setError('');
     getDrafts(targetPage)
       .then(setData)
-      .catch(() => setError('Не удалось загрузить черновики.'))
+      .catch(() => setError(t('drafts.loadFailed')))
       .finally(() => setLoading(false));
   };
 
@@ -61,16 +63,16 @@ export default function DraftsPage() {
   };
 
   if (!canPublish) return <Navigate to="/publications" replace />;
-  if (loading) return <p>Loading...</p>;
+  if (loading) return <p>{t('common.loading')}</p>;
   if (error) return <p className="error">{error}</p>;
 
   return (
     <div className="publications-page">
-      <h1 className="drafts-title">Мои черновики</h1>
+      <h1 className="drafts-title">{t('drafts.title')}</h1>
       {!data || data.items.length === 0 ? (
         <div className="publications-empty">
           <div className="publications-empty-card">
-            <h2>Нет черновиков</h2>
+            <h2>{t('drafts.empty')}</h2>
           </div>
         </div>
       ) : (
@@ -83,10 +85,10 @@ export default function DraftsPage() {
                 className="draft-card"
                 onClick={() => setEditing(pub)}
               >
-                <h2 className="draft-card-title">{pub.title || '(без заголовка)'}</h2>
+                <h2 className="draft-card-title">{pub.title || t('drafts.untitled')}</h2>
                 <p className="draft-card-preview">{pub.content.slice(0, 220)}</p>
                 <div className="draft-card-meta">
-                  <span>Изменено: {FormatDateTime(pub.created_at)}</span>
+                  <span>{t('drafts.modified', { date: FormatDateTime(pub.created_at) })}</span>
                   {pub.tags.length > 0 && (
                     <span className="draft-card-tags">
                       {pub.tags.map((t) => t.name).join(', ')}

@@ -6,6 +6,7 @@ import { likePublication, unlikePublication } from '../api/publications';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { copyShareLink } from '../utils/copyShareLink';
+import { useT } from '../hooks/useT';
 
 interface Props {
   publication: Publication;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function PublicationCard({ publication, onOpen, onTagClick }: Props) {
+  const t = useT();
   const { user } = useAuth();
   const { toast, showToast } = useToast();
   const date = FormatDateTime(publication.created_at);
@@ -21,8 +23,8 @@ export default function PublicationCard({ publication, onOpen, onTagClick }: Pro
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const url = `${window.location.origin}/publications/${publication.id}`;
-    const ok = await copyShareLink(url);
-    if (ok) showToast('Ссылка скопирована');
+    const ok = await copyShareLink(url, t('share.prompt'));
+    if (ok) showToast(t('publications.linkCopied'));
   };
   const contentRef = useRef<HTMLParagraphElement>(null);
   const [clamped, setClamped] = useState(false);
@@ -91,7 +93,7 @@ export default function PublicationCard({ publication, onOpen, onTagClick }: Pro
               className="publication-show-more"
               onClick={onOpen}
             >
-              Показать ещё
+              {t('publications.showMore')}
             </button>
           )}
         </div>
@@ -119,7 +121,7 @@ export default function PublicationCard({ publication, onOpen, onTagClick }: Pro
               className={`publication-meta-item publication-like${isLiked ? ' publication-like-active' : ''}`}
               onClick={handleLikeClick}
               disabled={!user || likePending}
-              aria-label={isLiked ? 'Убрать лайк' : 'Поставить лайк'}
+              aria-label={isLiked ? t('publications.unlike') : t('publications.like')}
             >
               <img
                 src={isLiked ? '/heart-filled.svg' : '/heart.svg'}
@@ -143,7 +145,7 @@ export default function PublicationCard({ publication, onOpen, onTagClick }: Pro
             type="button"
             className="publication-date publication-date-button"
             onClick={handleCopyLink}
-            title="Скопировать ссылку на публикацию"
+            title={t('publications.copyLinkTitle')}
           >
             {date}
           </button>

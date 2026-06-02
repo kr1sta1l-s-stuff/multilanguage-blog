@@ -47,7 +47,12 @@ class Publication(Base, UUIDMixin, SoftDeleteMixin):
     )
     images: Mapped[list["PublicationImages"]] = relationship(
         "PublicationImages",
-        back_populates="publication"
+        back_populates="publication",
+        primaryjoin=(
+            "and_(Publication.id == PublicationImages.publication_id, "
+            "PublicationImages.deleted_at.is_(None))"
+        ),
+        order_by="PublicationImages.position",
     )
     comments: Mapped[list["Comment"]] = relationship(
         "Comment",
@@ -76,6 +81,7 @@ class PublicationImages(Base, UUIDMixin, SoftDeleteMixin):
         back_populates="images"
     )
     image_url: Mapped[str] = mapped_column(String(255), nullable=False)
+    position: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
 
 
 class Comment(Base, UUIDMixin, SoftDeleteMixin):
@@ -115,7 +121,7 @@ class Like(Base, UUIDMixin, SoftDeleteMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     publication_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("publications.id"), nullable=False)
 
-    user: Mapped["User"] = relationship(
+    user: Mapped["User"] = relationship(  # noqa: F821
         "User",
         back_populates="likes"
     )

@@ -2,6 +2,7 @@ export interface User {
   id: string;
   username: string;
   rights: number;
+  language: string;
 }
 
 export interface TokenResponse {

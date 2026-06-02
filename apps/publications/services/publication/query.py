@@ -15,6 +15,8 @@ class PublicationQueryService(AbstractBaseService):
         user_id: uuid.UUID | None = None,
         tag_slugs: list[str] | None = None,
         search: str | None = None,
+        sort: str = "date",
+        order: str = "asc",
     ) -> Select:
         stmt = (
             select(Publication)
@@ -24,10 +26,12 @@ class PublicationQueryService(AbstractBaseService):
         if tag_slugs:
             stmt = self._filter_by_tag_slugs(stmt, tag_slugs)
         search = (search or "").strip()
-        if search:
-            stmt = self._filter_and_rank_by_search(stmt, search)
+        if sort == "relevance" and search:
+            stmt = self._filter_and_rank_by_search(stmt, search, order)
         else:
-            stmt = stmt.order_by(Publication.published_at.desc())
+            if search:
+                stmt = self._filter_by_search(stmt, search)
+            stmt = self._apply_sort(stmt, sort, order)
         return self._enrich_publication_with_is_liked(
             self._enrich_publication_with_comments_count(
                 self._enrich_publication_with_likes_count(stmt)
@@ -50,7 +54,11 @@ class PublicationQueryService(AbstractBaseService):
             author_id,
         )
 
-    async def get_by_id(self, publication_id: uuid.UUID, user_id: uuid.UUID | None = None) -> Publication | None:
+    async def get_by_id(
+        self,
+        publication_id: uuid.UUID,
+        user_id: uuid.UUID | None = None,
+    ) -> Publication | None:
         stmt = (
             select(Publication)
             .where(Publication.id == publication_id)
@@ -67,28 +75,47 @@ class PublicationQueryService(AbstractBaseService):
         )
         return result.unique().scalar_one_or_none()
 
+    @classmethod
+    def _filter_and_rank_by_search(cls, query: Select, search: str, order: str = "desc") -> Select:
+        title_sim = func.word_similarity(search, Publication.title)
+        content_sim = func.word_similarity(search, Publication.content)
+        rank = func.greatest(title_sim * 2, content_sim)
+        primary = rank.asc() if order == "asc" else rank.desc()
+        return cls._filter_by_search(query, search).order_by(
+            primary,
+            Publication.published_at.desc(),
+        )
+
     @staticmethod
-    def _filter_and_rank_by_search(query: Select, search: str) -> Select:
+    def _filter_by_search(query: Select, search: str) -> Select:
         like_pattern = f"%{search}%"
         title_sim = func.word_similarity(search, Publication.title)
         content_sim = func.word_similarity(search, Publication.content)
         title_threshold = 0.3 if len(search) >= 4 else 0.5
         content_threshold = 0.25 if len(search) >= 4 else 0.4
-        return (
-            query
-            .where(
-                or_(
-                    Publication.title.ilike(like_pattern),
-                    Publication.content.ilike(like_pattern),
-                    title_sim > title_threshold,
-                    content_sim > content_threshold,
-                )
-            )
-            .order_by(
-                func.greatest(title_sim * 2, content_sim).desc(),
-                Publication.published_at.desc(),
+        return query.where(
+            or_(
+                Publication.title.ilike(like_pattern),
+                Publication.content.ilike(like_pattern),
+                title_sim > title_threshold,
+                content_sim > content_threshold,
             )
         )
+
+    @staticmethod
+    def _apply_sort(query: Select, sort: str, order: str) -> Select:
+        descending = order == "desc"
+        if sort == "likes":
+            likes_count_expr = (
+                select(func.count(Like.id))
+                .where(Like.publication_id == Publication.id)
+                .where(Like.deleted_at.is_(None))
+                .scalar_subquery()
+            )
+            primary = likes_count_expr.desc() if descending else likes_count_expr.asc()
+            return query.order_by(primary, Publication.published_at.desc())
+        date_col = Publication.published_at
+        return query.order_by(date_col.desc() if descending else date_col.asc())
 
     @staticmethod
     def _filter_by_tag_slugs(query: Select, tag_slugs: list[str]) -> Select:

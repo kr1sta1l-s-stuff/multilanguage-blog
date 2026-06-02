@@ -4,8 +4,8 @@ from apps.auth.api import router as auth_router
 from apps.publications.api import (
     comments_router,
     publication_comments_router,
-    publications_router,
     publication_likes_router,
+    publications_router,
     tags_router,
 )
 from apps.users.api import router as users_router

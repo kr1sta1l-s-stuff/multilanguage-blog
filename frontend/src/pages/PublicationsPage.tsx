@@ -1,23 +1,45 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import type { Page, Publication, RelatedTag } from '../api/types';
+import type { PublicationOrder, PublicationSort } from '../api/publications';
 import { getPublications } from '../api/publications';
 import { getRelatedTags } from '../api/tags';
 import PublicationCard from '../components/PublicationCard';
 import PublicationModal from '../components/PublicationModal';
 import CreatePublicationModal from '../components/CreatePublicationModal';
+import PublicationsSortControls from '../components/PublicationsSortControls';
 import Pagination from '../components/Pagination';
 import { useAuth } from '../hooks/useAuth';
+import { useT } from '../hooks/useT';
+
+const SORT_VALUES: PublicationSort[] = ['date', 'likes', 'relevance'];
+const ORDER_VALUES: PublicationOrder[] = ['asc', 'desc'];
 
 const CAN_PUBLISH = 1;
 
 export default function PublicationsPage() {
+  const t = useT();
   const [searchParams, setSearchParams] = useSearchParams();
   const { id: selectedId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const page = Number(searchParams.get('page')) || 1;
   const tagFilters = useMemo(() => searchParams.getAll('tags'), [searchParams]);
   const searchQuery = searchParams.get('q') ?? '';
+  const searchActive = searchQuery.trim().length > 0;
+  const sortParam = searchParams.get('sort');
+  const orderParam = searchParams.get('order');
+  const sort: PublicationSort = (() => {
+    if (sortParam && (SORT_VALUES as string[]).includes(sortParam)) {
+      const s = sortParam as PublicationSort;
+      if (s === 'relevance' && !searchActive) return 'date';
+      return s;
+    }
+    return searchActive ? 'relevance' : 'date';
+  })();
+  const order: PublicationOrder =
+    orderParam && (ORDER_VALUES as string[]).includes(orderParam)
+      ? (orderParam as PublicationOrder)
+      : 'desc';
   const { user } = useAuth();
   const [data, setData] = useState<Page<Publication> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,7 +60,15 @@ export default function PublicationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canPublish, searchParams]);
 
-  const buildQuery = (overrides: { page?: number; tags?: string[]; q?: string } = {}) => {
+  const buildQuery = (
+    overrides: {
+      page?: number;
+      tags?: string[];
+      q?: string;
+      sort?: PublicationSort | null;
+      order?: PublicationOrder | null;
+    } = {},
+  ) => {
     const next = new URLSearchParams();
     const nextPage = overrides.page ?? page;
     if (nextPage > 1) next.set('page', String(nextPage));
@@ -46,15 +76,25 @@ export default function PublicationsPage() {
     nextTags.forEach((t) => next.append('tags', t));
     const nextQ = overrides.q !== undefined ? overrides.q : searchQuery;
     if (nextQ) next.set('q', nextQ);
+    const nextSort = overrides.sort === undefined ? sortParam : overrides.sort;
+    if (nextSort) next.set('sort', nextSort);
+    const nextOrder = overrides.order === undefined ? orderParam : overrides.order;
+    if (nextOrder) next.set('order', nextOrder);
     return next;
   };
 
-  const fetchData = (targetPage: number, targetTags: string[], targetSearch: string) => {
+  const fetchData = (
+    targetPage: number,
+    targetTags: string[],
+    targetSearch: string,
+    targetSort: PublicationSort,
+    targetOrder: PublicationOrder,
+  ) => {
     setError('');
     setRefreshing(true);
-    return getPublications(targetPage, 20, targetTags, targetSearch)
+    return getPublications(targetPage, 20, targetTags, targetSearch, targetSort, targetOrder)
       .then(setData)
-      .catch(() => setError('Failed to load publications.'))
+      .catch(() => setError(t('publications.loadFailed')))
       .finally(() => {
         setLoading(false);
         setRefreshing(false);
@@ -63,7 +103,7 @@ export default function PublicationsPage() {
 
   const handleCreated = () => {
     setCreateOpen(false);
-    fetchData(page, tagFilters, searchQuery);
+    fetchData(page, tagFilters, searchQuery, sort, order);
   };
 
   const tagsKey = tagFilters.join(',');
@@ -73,6 +113,8 @@ export default function PublicationsPage() {
     return s ? `?${s}` : '';
   })();
 
+  const pinnedCommentId = searchParams.get('comment');
+
   const openPublication = (id: string) => {
     navigate(`/publications/${id}${pageQuery}`);
   };
@@ -81,10 +123,15 @@ export default function PublicationsPage() {
     navigate(`/publications${pageQuery}`);
   };
 
+  const clearPinnedComment = () => {
+    if (!selectedId) return;
+    navigate(`/publications/${selectedId}${pageQuery}`, { replace: true });
+  };
+
   useEffect(() => {
-    fetchData(page, tagFilters, searchQuery);
+    fetchData(page, tagFilters, searchQuery, sort, order);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, tagsKey, searchQuery]);
+  }, [page, tagsKey, searchQuery, sort, order]);
 
   useEffect(() => {
     if (tagFilters.length === 0) {
@@ -123,15 +170,30 @@ export default function PublicationsPage() {
     setSearchParams(buildQuery({ page: 1, tags: [...tagFilters, slug] }));
   };
 
-  if (loading) return <p>Loading...</p>;
+  const handleSortChange = (next: PublicationSort) => {
+    setSearchParams(buildQuery({ page: 1, sort: next }));
+  };
+
+  const handleOrderChange = (next: PublicationOrder) => {
+    setSearchParams(buildQuery({ page: 1, order: next }));
+  };
+
+  if (loading) return <p>{t('common.loading')}</p>;
   if (error && !data) return <p className="error">{error}</p>;
 
   return (
     <div className={`publications-page${refreshing ? ' publications-page-refreshing' : ''}`}>
-      {tagFilters.length > 0 && (
-        <div className="publications-toolbar">
+      <div className="publications-toolbar">
+        <PublicationsSortControls
+          sort={sort}
+          order={order}
+          searchActive={searchActive}
+          onSortChange={handleSortChange}
+          onOrderChange={handleOrderChange}
+        />
+        {tagFilters.length > 0 && (
           <div className="publications-active-filters">
-            <span className="publications-active-filters-label">Фильтр:</span>
+            <span className="publications-active-filters-label">{t('publications.filter')}</span>
             {tagFilters.map((tag) => (
               <span key={tag} className="tag-chip tag-chip-active">
                 {tag}
@@ -139,28 +201,28 @@ export default function PublicationsPage() {
                   type="button"
                   className="tag-chip-remove"
                   onClick={() => removeTagFilter(tag)}
-                  aria-label={`Убрать фильтр ${tag}`}
+                  aria-label={t('publications.removeFilter', { tag })}
                 >
                   &times;
                 </button>
               </span>
             ))}
             <button type="button" className="tag-chip-clear" onClick={clearTagFilters}>
-              Очистить
+              {t('common.clear')}
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
       {tagFilters.length > 0 && related.length > 0 && (
         <div className="publications-related-tags">
-          <span className="publications-related-tags-label">Похожие теги:</span>
+          <span className="publications-related-tags-label">{t('publications.relatedTags')}</span>
           {related.map((tag) => (
             <button
               key={tag.id}
               type="button"
               className="tag-chip tag-chip-clickable"
               onClick={() => onTagClick(tag.slug)}
-              title={`${tag.count} публикаций`}
+              title={t('publications.tagCount', { count: tag.count })}
             >
               {tag.name}
               <span className="tag-chip-count">{tag.count}</span>
@@ -172,7 +234,7 @@ export default function PublicationsPage() {
       {!data || data.items.length === 0 ? (
         <div className="publications-empty">
           <div className="publications-empty-card">
-            <h2>Публикации не найдены</h2>
+            <h2>{t('publications.notFound')}</h2>
           </div>
         </div>
       ) : (
@@ -195,6 +257,8 @@ export default function PublicationsPage() {
         <PublicationModal
           publicationId={selectedId}
           onClose={closePublication}
+          pinnedCommentId={pinnedCommentId}
+          onClearPinned={clearPinnedComment}
         />
       )}
 

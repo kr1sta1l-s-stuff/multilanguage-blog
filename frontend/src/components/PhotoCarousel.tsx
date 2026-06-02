@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PublicationImage } from '../api/types';
+import { useT } from '../hooks/useT';
 
 interface Props {
   images: PublicationImage[];
@@ -16,6 +17,7 @@ export default function PhotoCarousel({
   enableKeyboard,
   enableFullscreen,
 }: Props) {
+  const t = useT();
   const [index, setIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
   const count = images.length;
@@ -117,7 +119,7 @@ export default function PhotoCarousel({
             type="button"
             className="photo-carousel-btn photo-carousel-btn-prev"
             onClick={showPrev}
-            aria-label="Previous image"
+            aria-label={t('photo.prev')}
           >
             &#10094;
           </button>
@@ -125,12 +127,12 @@ export default function PhotoCarousel({
             type="button"
             className="photo-carousel-btn photo-carousel-btn-next"
             onClick={showNext}
-            aria-label="Next image"
+            aria-label={t('photo.next')}
           >
             &#10095;
           </button>
           <span className="photo-carousel-counter">
-            {index + 1} из {count}
+            {t('photo.counter', { current: index + 1, count })}
           </span>
         </>
       )}
@@ -147,7 +149,7 @@ export default function PhotoCarousel({
             type="button"
             className="photo-carousel-fullscreen-close"
             onClick={() => setFullscreen(false)}
-            aria-label="Закрыть"
+            aria-label={t('common.close')}
           >
             &times;
           </button>
@@ -162,7 +164,7 @@ export default function PhotoCarousel({
                 type="button"
                 className="photo-carousel-btn photo-carousel-btn-prev"
                 onClick={showPrev}
-                aria-label="Previous image"
+                aria-label={t('photo.prev')}
               >
                 &#10094;
               </button>
@@ -170,12 +172,12 @@ export default function PhotoCarousel({
                 type="button"
                 className="photo-carousel-btn photo-carousel-btn-next"
                 onClick={showNext}
-                aria-label="Next image"
+                aria-label={t('photo.next')}
               >
                 &#10095;
               </button>
               <span className="photo-carousel-counter">
-                {index + 1} из {count}
+                {t('photo.counter', { current: index + 1, count })}
               </span>
             </>
           )}

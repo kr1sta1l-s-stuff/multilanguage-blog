@@ -20,6 +20,11 @@ export async function createComment(
   return data;
 }
 
+export async function getCommentThread(commentId: string): Promise<Comment[]> {
+  const { data } = await client.get<Comment[]>(`/comments/${commentId}/thread`);
+  return data;
+}
+
 export async function updateComment(commentId: string, content: string): Promise<Comment> {
   const formData = new FormData();
   formData.append('content', content);

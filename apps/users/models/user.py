@@ -19,6 +19,12 @@ class User(Base, UUIDMixin, SoftDeleteMixin):
         nullable=False,
         default=UserRights.CAN_COMMENT.value
     )
+    language: Mapped[str] = mapped_column(
+        String(8),
+        nullable=False,
+        default="ru",
+        server_default="ru",
+    )
 
     publications: Mapped[list["Publication"]] = relationship(  # noqa: F821
         "Publication",

@@ -21,7 +21,10 @@ class PublicationCommandService(AbstractBaseService):
             title=title,
             content=content,
             author_id=author_id,
-            images=[PublicationImages(image_url=url) for url in images],
+            images=[
+                PublicationImages(image_url=url, position=idx)
+                for idx, url in enumerate(images)
+            ],
             published_at=datetime.now() if publish_immediately else None,
             tags=tag_objs,
         )
@@ -41,6 +44,8 @@ class PublicationCommandService(AbstractBaseService):
         tags: list[str] | None = None,
         unset_tags: bool = False,
         publish: bool | None = None,
+        image_order: list[str] | None = None,
+        new_image_urls: list[str] | None = None,
     ) -> Publication:
         if title is not None:
             publication.title = title
@@ -49,6 +54,8 @@ class PublicationCommandService(AbstractBaseService):
         if unset_tags:
             tag_objs = await TagCommandService(self.session).normalize_and_get_or_create(tags or [])
             publication.tags = tag_objs
+        if image_order is not None:
+            self._apply_image_order(publication, image_order, new_image_urls or [])
         if publish is True and publication.published_at is None:
             publication.published_at = datetime.now()
         elif publish is False:
@@ -59,6 +66,36 @@ class PublicationCommandService(AbstractBaseService):
         publication.likes_count = getattr(publication, "likes_count", 0) or 0
         publication.is_liked = getattr(publication, "is_liked", False) or False
         return publication
+
+    def _apply_image_order(
+        self,
+        publication: Publication,
+        image_order: list[str],
+        new_image_urls: list[str],
+    ) -> None:
+        existing_by_id = {img.id: img for img in publication.images}
+        keep_ids: set[uuid.UUID] = set()
+        for position, token in enumerate(image_order):
+            kind, _, ref = token.partition(":")
+            if kind == "existing":
+                img_id = uuid.UUID(ref)
+                img = existing_by_id[img_id]
+                img.position = position
+                keep_ids.add(img_id)
+            elif kind == "new":
+                self.session.add(
+                    PublicationImages(
+                        publication_id=publication.id,
+                        image_url=new_image_urls[int(ref)],
+                        position=position,
+                    )
+                )
+            else:
+                raise ValueError(f"Invalid image order token: {token!r}")
+        now = datetime.now()
+        for img in publication.images:
+            if img.id not in keep_ids:
+                img.deleted_at = now
 
     async def delete(self, publication: Publication) -> None:
         publication.deleted_at = datetime.now()

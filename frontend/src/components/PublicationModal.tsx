@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { Comment, Publication } from '../api/types';
 import { getPublication, likePublication, unlikePublication } from '../api/publications';
-import { deleteComment, getComments, updateComment } from '../api/comments';
+import { deleteComment, getCommentThread, getComments, updateComment } from '../api/comments';
 import CommentList from './CommentList';
 import CommentForm, { type ReplyTarget } from './CommentForm';
 import Pagination from './Pagination';
@@ -12,13 +12,22 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { copyShareLink } from '../utils/copyShareLink';
 import PrettifyCount, { FormatDateTime } from './Utils';
+import { useT } from '../hooks/useT';
 
 interface Props {
   publicationId: string;
   onClose: () => void;
+  pinnedCommentId?: string | null;
+  onClearPinned?: () => void;
 }
 
-export default function PublicationModal({ publicationId, onClose }: Props) {
+export default function PublicationModal({
+  publicationId,
+  onClose,
+  pinnedCommentId,
+  onClearPinned,
+}: Props) {
+  const t = useT();
   const { user } = useAuth();
   const [publication, setPublication] = useState<Publication | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -29,7 +38,10 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
   const [likePending, setLikePending] = useState(false);
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
   const [editing, setEditing] = useState(false);
+  const [pinnedThread, setPinnedThread] = useState<Comment[]>([]);
   const { toast, showToast } = useToast();
+
+  const pinnedRootId = pinnedThread.find((c) => !c.thread_id)?.id ?? null;
 
   const isAuthor = !!user && !!publication && publication.author_id === user.id;
   const shareUrl = publication
@@ -38,8 +50,14 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
 
   const handleCopyLink = async () => {
     if (!publication) return;
-    const ok = await copyShareLink(shareUrl);
-    if (ok) showToast('Ссылка скопирована');
+    const ok = await copyShareLink(shareUrl, t('share.prompt'));
+    if (ok) showToast(t('publications.linkCopied'));
+  };
+
+  const handleCopyCommentLink = async (commentId: string) => {
+    const url = `${window.location.origin}/publications/${publicationId}?comment=${commentId}`;
+    const ok = await copyShareLink(url, t('share.prompt'));
+    if (ok) showToast(t('comments.linkCopied'));
   };
 
   const handleLikeClick = async () => {
@@ -79,9 +97,27 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
         setCommentPages(commentsData.pages);
         setCommentPage(commentsData.page);
       })
-      .catch(() => setError('Failed to load publication.'))
+      .catch(() => setError(t('comments.loadFailed')))
       .finally(() => setLoading(false));
   }, [publicationId]);
+
+  useEffect(() => {
+    if (!pinnedCommentId) {
+      setPinnedThread([]);
+      return;
+    }
+    let cancelled = false;
+    getCommentThread(pinnedCommentId)
+      .then((thread) => {
+        if (!cancelled) setPinnedThread(thread);
+      })
+      .catch(() => {
+        if (!cancelled) setPinnedThread([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pinnedCommentId]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -105,6 +141,9 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
 
   const handleCommentAdded = (comment: Comment) => {
     setComments((prev) => [comment, ...prev]);
+    if (pinnedRootId && comment.thread_id === pinnedRootId) {
+      setPinnedThread((prev) => [...prev, comment]);
+    }
   };
 
   const handleCommentDeleted = async (commentId: string) => {
@@ -123,11 +162,24 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
         }
         return prev.filter((c) => c.id !== commentId);
       });
+      setPinnedThread((prev) => {
+        const target = prev.find((c) => c.id === commentId);
+        const isRootWithReplies =
+          target != null &&
+          !target.thread_id &&
+          prev.some((c) => c.thread_id === commentId);
+        if (isRootWithReplies) {
+          return prev.map((c) =>
+            c.id === commentId ? { ...c, is_deleted: true, content: '' } : c,
+          );
+        }
+        return prev.filter((c) => c.id !== commentId);
+      });
       setPublication((prev) =>
         prev ? { ...prev, comments_count: Math.max(0, prev.comments_count - 1) } : prev
       );
     } catch {
-      alert('Не удалось удалить комментарий.');
+      alert(t('comments.deleteFailed'));
     }
   };
 
@@ -135,8 +187,9 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
     try {
       const updated = await updateComment(commentId, content);
       setComments((prev) => prev.map((c) => (c.id === commentId ? updated : c)));
+      setPinnedThread((prev) => prev.map((c) => (c.id === commentId ? updated : c)));
     } catch {
-      alert('Не удалось обновить комментарий.');
+      alert(t('comments.updateFailed'));
     }
   };
 
@@ -153,7 +206,7 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
         <button
           className="modal-close modal-close-outside"
           onClick={onClose}
-          aria-label="Закрыть"
+          aria-label={t('common.close')}
         >
           &times;
         </button>
@@ -164,12 +217,12 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
               canEdit={isAuthor}
               onEdit={() => setEditing(true)}
               shareUrl={shareUrl}
-              onCopied={() => showToast('Ссылка скопирована')}
+              onCopied={() => showToast(t('publications.linkCopied'))}
             />
           )}
         </div>
         <div className="modal-scroll">
-        {loading && <p>Loading...</p>}
+        {loading && <p>{t('common.loading')}</p>}
         {error && <p className="error">{error}</p>}
         {publication && (
           <>
@@ -179,7 +232,7 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
                 type="button"
                 className="publication-date publication-date-button"
                 onClick={handleCopyLink}
-                title="Скопировать ссылку на публикацию"
+                title={t('publications.copyLinkTitle')}
               >
                 {FormatDateTime(publication.created_at)}
               </button>
@@ -207,7 +260,7 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
                     className={`publication-meta-item publication-like${publication.is_liked ? ' publication-like-active' : ''}`}
                     onClick={handleLikeClick}
                     disabled={!user || likePending}
-                    aria-label={publication.is_liked ? 'Убрать лайк' : 'Поставить лайк'}
+                    aria-label={publication.is_liked ? t('publications.unlike') : t('publications.like')}
                   >
                     <img
                       src={publication.is_liked ? '/heart-filled.svg' : '/heart.svg'}
@@ -229,31 +282,62 @@ export default function PublicationModal({ publicationId, onClose }: Props) {
             </article>
 
             <section className="comments-section">
-              <h2>Комментарии ({publication.comments_count})</h2>
+              <h2>{t('comments.title')} ({publication.comments_count})</h2>
+              {pinnedThread.length > 0 && (
+                <div className="comment-pinned">
+                  <div className="comment-pinned-header">
+                    <span className="comment-pinned-label">{t('comments.linked')}</span>
+                    <button
+                      type="button"
+                      className="comment-pinned-close"
+                      onClick={onClearPinned}
+                      aria-label={t('common.close')}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                  <CommentList
+                    comments={pinnedThread}
+                    currentUser={user}
+                    onDelete={handleCommentDeleted}
+                    onEdit={handleCommentEdited}
+                    onReply={setReplyTo}
+                    onCopyLink={handleCopyCommentLink}
+                    highlightCommentId={pinnedCommentId}
+                  />
+                </div>
+              )}
               <CommentList
-                comments={comments}
+                comments={comments.filter(
+                  (c) =>
+                    !pinnedRootId ||
+                    (c.id !== pinnedRootId && c.thread_id !== pinnedRootId),
+                )}
                 currentUser={user}
                 onDelete={handleCommentDeleted}
                 onEdit={handleCommentEdited}
                 onReply={setReplyTo}
+                onCopyLink={handleCopyCommentLink}
               />
               <Pagination
                 page={commentPage}
                 pages={commentPages}
                 onPageChange={loadComments}
               />
-              {user && (
-                <CommentForm
-                  publicationId={publication.id}
-                  onCommentAdded={handleCommentAdded}
-                  replyTo={replyTo}
-                  onCancelReply={() => setReplyTo(null)}
-                />
-              )}
             </section>
           </>
         )}
         </div>
+        {publication && user && (
+          <div className="modal-footer">
+            <CommentForm
+              publicationId={publication.id}
+              onCommentAdded={handleCommentAdded}
+              replyTo={replyTo}
+              onCancelReply={() => setReplyTo(null)}
+            />
+          </div>
+        )}
         </div>
       </div>
       {editing && publication && (

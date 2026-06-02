@@ -1,17 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
+import { useT } from '../hooks/useT';
+
+export type PickerItem =
+  | { kind: 'existing'; id: string; url: string }
+  | { kind: 'new'; file: File };
 
 interface Props {
-  images: File[];
-  onChange: (images: File[]) => void;
+  items: PickerItem[];
+  onChange: (items: PickerItem[]) => void;
   max?: number;
 }
 
 interface PreviewItem {
-  file: File;
+  key: string;
   url: string;
 }
 
-export default function ImagePicker({ images, onChange, max }: Props) {
+export default function ImagePicker({ items, onChange, max }: Props) {
+  const t = useT();
   const [previews, setPreviews] = useState<PreviewItem[]>([]);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
@@ -19,17 +25,25 @@ export default function ImagePicker({ images, onChange, max }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const items = images.map((file) => ({ file, url: URL.createObjectURL(file) }));
-    setPreviews(items);
+    const created: string[] = [];
+    const next = items.map((item, idx): PreviewItem => {
+      if (item.kind === 'existing') {
+        return { key: `existing-${item.id}`, url: item.url };
+      }
+      const url = URL.createObjectURL(item.file);
+      created.push(url);
+      return { key: `new-${idx}-${item.file.name}`, url };
+    });
+    setPreviews(next);
     return () => {
-      items.forEach((item) => URL.revokeObjectURL(item.url));
+      created.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [images]);
+  }, [items]);
 
   const addFiles = (files: File[]) => {
     const onlyImages = files.filter((f) => f.type.startsWith('image/'));
     if (onlyImages.length === 0) return;
-    const next = [...images, ...onlyImages];
+    const next: PickerItem[] = [...items, ...onlyImages.map((file) => ({ kind: 'new' as const, file }))];
     onChange(max ? next.slice(0, max) : next);
   };
 
@@ -66,14 +80,14 @@ export default function ImagePicker({ images, onChange, max }: Props) {
   };
 
   const removeAt = (idx: number) => {
-    const next = images.slice();
+    const next = items.slice();
     next.splice(idx, 1);
     onChange(next);
   };
 
   const reorder = (from: number, to: number) => {
     if (from === to) return;
-    const next = images.slice();
+    const next = items.slice();
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     onChange(next);
@@ -91,7 +105,7 @@ export default function ImagePicker({ images, onChange, max }: Props) {
       <div className="image-picker-list">
         {previews.map((item, idx) => (
           <div
-            key={item.url}
+            key={item.key}
             className={`image-picker-item${dragIndex === idx ? ' image-picker-item-dragging' : ''}${overIndex === idx && dragIndex !== null && dragIndex !== idx ? ' image-picker-item-over' : ''}`}
             draggable
             onDragStart={(e) => {
@@ -127,7 +141,7 @@ export default function ImagePicker({ images, onChange, max }: Props) {
               type="button"
               className="image-picker-remove"
               onClick={() => removeAt(idx)}
-              aria-label="Удалить"
+              aria-label={t('imagePicker.remove')}
             >
               &times;
             </button>
@@ -137,13 +151,13 @@ export default function ImagePicker({ images, onChange, max }: Props) {
           type="button"
           className="image-picker-add"
           onClick={() => fileInputRef.current?.click()}
-          disabled={!!max && images.length >= max}
+          disabled={!!max && items.length >= max}
         >
           +
         </button>
       </div>
       <p className="image-picker-hint">
-        Перетащите файлы, вставьте из буфера обмена (Ctrl+V) или нажмите «+». Тяните превью, чтобы изменить порядок.
+        {t('imagePicker.hint')}
       </p>
       <input
         ref={fileInputRef}

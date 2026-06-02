@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useT } from '../hooks/useT';
 
 const PUBLICATIONS_PATH = '/publications';
 
 export default function HeaderSearch() {
+  const t = useT();
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -73,7 +75,7 @@ export default function HeaderSearch() {
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKey}
         onBlur={handleBlur}
-        placeholder="Поиск..."
+        placeholder={t('search.placeholder')}
         aria-hidden={!open}
         tabIndex={open ? 0 : -1}
       />
@@ -82,10 +84,10 @@ export default function HeaderSearch() {
         className="header-search-toggle"
         onMouseDown={(e) => e.preventDefault()}
         onClick={handleToggle}
-        aria-label={open ? 'Закрыть поиск' : 'Открыть поиск'}
+        aria-label={open ? t('search.close') : t('search.open')}
       >
         {open ? (
-          <span className="header-search-close" aria-hidden="true">&times;</span>
+          <span className="header-search-close" aria-hidden="true" />
         ) : (
           <img src="/search.svg" alt="" className="header-search-icon" />
         )}

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import type { Publication } from '../api/types';
 import { createPublication } from '../api/publications';
-import ImagePicker from './ImagePicker';
+import ImagePicker, { type PickerItem } from './ImagePicker';
 import TagInput from './TagInput';
+import { useT } from '../hooks/useT';
 
 interface Props {
   onClose: () => void;
@@ -11,9 +12,10 @@ interface Props {
 }
 
 export default function CreatePublicationModal({ onClose, onCreated }: Props) {
+  const t = useT();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [images, setImages] = useState<File[]>([]);
+  const [images, setImages] = useState<PickerItem[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [publishImmediately, setPublishImmediately] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -44,16 +46,17 @@ export default function CreatePublicationModal({ onClose, onCreated }: Props) {
     setSubmitting(true);
     setError('');
     try {
+      const files = images.flatMap((item) => (item.kind === 'new' ? [item.file] : []));
       const publication = await createPublication(
         title.trim(),
         content.trim(),
-        images,
+        files,
         publishImmediately,
         tags,
       );
       onCreated(publication);
     } catch (err) {
-      let message = 'Не удалось создать публикацию.';
+      let message = t('publicationForm.createFailed');
       if (axios.isAxiosError(err)) {
         const detail = err.response?.data?.detail;
         if (typeof detail === 'string') message = detail;
@@ -72,10 +75,10 @@ export default function CreatePublicationModal({ onClose, onCreated }: Props) {
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
         <div className="modal-scroll">
-        <h1>Новая публикация</h1>
+        <h1>{t('publicationForm.newTitle')}</h1>
         <form onSubmit={handleSubmit} className="create-publication-form">
           <label className="create-publication-field">
-            <span>Заголовок</span>
+            <span>{t('publicationForm.title')}</span>
             <input
               type="text"
               value={title}
@@ -85,7 +88,7 @@ export default function CreatePublicationModal({ onClose, onCreated }: Props) {
             />
           </label>
           <label className="create-publication-field">
-            <span>Текст</span>
+            <span>{t('publicationForm.text')}</span>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -94,11 +97,11 @@ export default function CreatePublicationModal({ onClose, onCreated }: Props) {
             />
           </label>
           <div className="create-publication-field">
-            <span>Изображения</span>
-            <ImagePicker images={images} onChange={setImages} />
+            <span>{t('publicationForm.images')}</span>
+            <ImagePicker items={images} onChange={setImages} />
           </div>
           <div className="create-publication-field">
-            <span>Теги</span>
+            <span>{t('publicationForm.tags')}</span>
             <TagInput tags={tags} onChange={setTags} />
           </div>
           <label className="create-publication-checkbox">
@@ -107,15 +110,15 @@ export default function CreatePublicationModal({ onClose, onCreated }: Props) {
               checked={publishImmediately}
               onChange={(e) => setPublishImmediately(e.target.checked)}
             />
-            <span>Опубликовать сразу</span>
+            <span>{t('publicationForm.publishImmediately')}</span>
           </label>
           {error && <p className="error">{error}</p>}
           <div className="create-publication-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
-              Отмена
+              {t('common.cancel')}
             </button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? 'Публикация...' : 'Опубликовать'}
+              {submitting ? t('publicationForm.publishing') : t('publicationForm.publish')}
             </button>
           </div>
         </form>

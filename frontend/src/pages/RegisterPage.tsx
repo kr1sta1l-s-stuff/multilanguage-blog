@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AxiosError } from 'axios';
+import { useT } from '../hooks/useT';
 
 export default function RegisterPage() {
+  const t = useT();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -17,7 +19,7 @@ export default function RegisterPage() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('auth.passwordsMismatch'));
       return;
     }
 
@@ -27,16 +29,16 @@ export default function RegisterPage() {
       navigate('/login');
     } catch (err) {
       if (err instanceof AxiosError && err.response?.status === 409) {
-        setError('Username already taken.');
+        setError(t('auth.usernameTaken'));
       } else if (err instanceof AxiosError && err.response?.status === 422) {
         const detail = err.response.data?.detail;
         if (Array.isArray(detail)) {
           setError(detail.map((d: { msg: string }) => d.msg).join('. '));
         } else {
-          setError('Validation error. Check your input.');
+          setError(t('auth.validationError'));
         }
       } else {
-        setError('Registration failed. Please try again.');
+        setError(t('auth.registerFailed'));
       }
     } finally {
       setLoading(false);
@@ -45,10 +47,10 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-page">
-      <h1>Register</h1>
+      <h1>{t('auth.registerTitle')}</h1>
       <form onSubmit={handleSubmit} className="auth-form">
         <label>
-          Username
+          {t('auth.username')}
           <input
             type="text"
             value={username}
@@ -57,11 +59,11 @@ export default function RegisterPage() {
             minLength={4}
             maxLength={32}
             pattern="^[a-z0-9][a-z0-9_]{2,30}[a-z0-9]$"
-            title="4-32 characters: lowercase letters, digits, underscores. Cannot start/end with underscore."
+            title={t('auth.usernameTitle')}
           />
         </label>
         <label>
-          Password
+          {t('auth.password')}
           <input
             type="password"
             value={password}
@@ -71,7 +73,7 @@ export default function RegisterPage() {
           />
         </label>
         <label>
-          Confirm Password
+          {t('auth.confirmPassword')}
           <input
             type="password"
             value={confirmPassword}
@@ -81,11 +83,11 @@ export default function RegisterPage() {
         </label>
         {error && <p className="error">{error}</p>}
         <button type="submit" disabled={loading} className="btn btn-primary">
-          {loading ? 'Registering...' : 'Register'}
+          {loading ? t('auth.registering') : t('auth.registerButton')}
         </button>
       </form>
       <p className="auth-link">
-        Already have an account? <Link to="/login">Login</Link>
+        {t('auth.haveAccount')} <Link to="/login">{t('auth.loginLink')}</Link>
       </p>
     </div>
   );

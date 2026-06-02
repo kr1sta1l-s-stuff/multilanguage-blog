@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { copyShareLink } from '../utils/copyShareLink';
+import { useT } from '../hooks/useT';
 
 interface Props {
   canEdit: boolean;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function PublicationActionsMenu({ canEdit, onEdit, shareUrl, onCopied }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -30,7 +32,7 @@ export default function PublicationActionsMenu({ canEdit, onEdit, shareUrl, onCo
 
   const handleCopy = async () => {
     setOpen(false);
-    const ok = await copyShareLink(shareUrl);
+    const ok = await copyShareLink(shareUrl, t('share.prompt'));
     if (ok) onCopied();
   };
 
@@ -42,7 +44,7 @@ export default function PublicationActionsMenu({ canEdit, onEdit, shareUrl, onCo
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="Действия"
+        aria-label={t('actions.label')}
       >
         <span aria-hidden="true">⋮</span>
       </button>
@@ -64,7 +66,7 @@ export default function PublicationActionsMenu({ canEdit, onEdit, shareUrl, onCo
                   <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
                 </svg>
               </span>
-              Изменить
+              {t('actions.edit')}
             </button>
           )}
           <button
@@ -79,7 +81,7 @@ export default function PublicationActionsMenu({ canEdit, onEdit, shareUrl, onCo
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
               </svg>
             </span>
-            Скопировать ссылку
+            {t('actions.copyLink')}
           </button>
         </div>
       )}

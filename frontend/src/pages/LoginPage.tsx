@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AxiosError } from 'axios';
+import { useT } from '../hooks/useT';
 
 export default function LoginPage() {
+  const t = useT();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -20,9 +22,9 @@ export default function LoginPage() {
       navigate('/publications');
     } catch (err) {
       if (err instanceof AxiosError && err.response?.status === 401) {
-        setError('Invalid username or password.');
+        setError(t('auth.invalidCredentials'));
       } else {
-        setError('Login failed. Please try again.');
+        setError(t('auth.loginFailed'));
       }
     } finally {
       setLoading(false);
@@ -31,10 +33,10 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page">
-      <h1>Login</h1>
+      <h1>{t('auth.loginTitle')}</h1>
       <form onSubmit={handleSubmit} className="auth-form">
         <label>
-          Username
+          {t('auth.username')}
           <input
             type="text"
             value={username}
@@ -43,7 +45,7 @@ export default function LoginPage() {
           />
         </label>
         <label>
-          Password
+          {t('auth.password')}
           <input
             type="password"
             value={password}
@@ -53,11 +55,11 @@ export default function LoginPage() {
         </label>
         {error && <p className="error">{error}</p>}
         <button type="submit" disabled={loading} className="btn btn-primary">
-          {loading ? 'Logging in...' : 'Login'}
+          {loading ? t('auth.loggingIn') : t('auth.loginButton')}
         </button>
       </form>
       <p className="auth-link">
-        Don't have an account? <Link to="/register">Register</Link>
+        {t('auth.noAccount')} <Link to="/register">{t('auth.registerLink')}</Link>
       </p>
     </div>
   );

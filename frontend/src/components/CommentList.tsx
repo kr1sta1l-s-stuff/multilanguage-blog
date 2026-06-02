@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Comment } from '../api/types';
 import type { User } from '../api/types';
 import { FormatDateTime } from './Utils';
+import { useT } from '../hooks/useT';
 
 interface Props {
   comments: Comment[];
@@ -9,6 +10,8 @@ interface Props {
   onDelete: (commentId: string) => void;
   onEdit: (commentId: string, content: string) => Promise<void>;
   onReply: (target: { commentId: string; username: string; content: string }) => void;
+  onCopyLink?: (commentId: string) => void;
+  highlightCommentId?: string | null;
 }
 
 const CAN_MODERATE_COMMENTS = 1 << 2;
@@ -19,7 +22,10 @@ export default function CommentList({
   onDelete,
   onEdit,
   onReply,
+  onCopyLink,
+  highlightCommentId,
 }: Props) {
+  const t = useT();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [saving, setSaving] = useState(false);
@@ -27,6 +33,20 @@ export default function CommentList({
   const [menuDirection, setMenuDirection] = useState<'down' | 'up'>('down');
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuPopupRef = useRef<HTMLDivElement | null>(null);
+  const commentRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  useEffect(() => {
+    if (!highlightCommentId) return;
+    const el = commentRefs.current.get(highlightCommentId);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.add('comment-highlight');
+    const timer = window.setTimeout(
+      () => el.classList.remove('comment-highlight'),
+      2000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [highlightCommentId, comments]);
 
   useEffect(() => {
     if (!menuOpenId) return;
@@ -61,7 +81,7 @@ export default function CommentList({
   if (comments.length === 0) {
     return (
       <div className="comment-list">
-        <p className="no-comments">Здесь пока нет комментариев. Будьте первыми!</p>
+        <p className="no-comments">{t('comments.empty')}</p>
       </div>
     );
   }
@@ -119,20 +139,38 @@ export default function CommentList({
       comment.updated_at &&
       comment.updated_at !== comment.created_at;
 
+    const canCopyLink = !comment.is_deleted && !!onCopyLink;
+    const hasMenu = canEdit || canDelete || canReply || canCopyLink;
+
     return (
       <div
         key={comment.id}
+        ref={(el) => {
+          if (el) commentRefs.current.set(comment.id, el);
+          else commentRefs.current.delete(comment.id);
+        }}
         className={`comment${comment.is_deleted ? ' comment-deleted' : ''}`}
       >
         <div className="comment-header">
           <strong>{comment.is_deleted ? '—' : comment.author.username}</strong>
-          {!comment.is_deleted && (
-            <span className="comment-date">
-              {FormatDateTime(comment.created_at)}
-              {wasEdited && ' (изменено)'}
-            </span>
-          )}
-          {!isEditing && (canEdit || canDelete || canReply) && (
+          {!comment.is_deleted &&
+            (canCopyLink ? (
+              <button
+                type="button"
+                className="comment-date comment-date-button"
+                onClick={() => onCopyLink!(comment.id)}
+                title={t('comments.copyLinkTitle')}
+              >
+                {FormatDateTime(comment.created_at)}
+                {wasEdited && ` ${t('comments.edited')}`}
+              </button>
+            ) : (
+              <span className="comment-date">
+                {FormatDateTime(comment.created_at)}
+                {wasEdited && ` ${t('comments.edited')}`}
+              </span>
+            ))}
+          {!isEditing && hasMenu && (
             <div
               className="comment-actions"
               ref={isMenuOpen ? menuRef : null}
@@ -141,7 +179,7 @@ export default function CommentList({
                 type="button"
                 className="comment-menu-toggle"
                 onClick={() => setMenuOpenId(isMenuOpen ? null : comment.id)}
-                aria-label="Comment actions"
+                aria-label={t('comments.actions')}
                 aria-haspopup="menu"
                 aria-expanded={isMenuOpen}
               >
@@ -153,6 +191,19 @@ export default function CommentList({
                   className={`comment-menu comment-menu-${menuDirection}`}
                   role="menu"
                 >
+                  {canCopyLink && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="comment-menu-item"
+                      onClick={() => {
+                        setMenuOpenId(null);
+                        onCopyLink!(comment.id);
+                      }}
+                    >
+                      {t('comments.copyLink')}
+                    </button>
+                  )}
                   {canReply && (
                     <button
                       type="button"
@@ -167,7 +218,7 @@ export default function CommentList({
                         });
                       }}
                     >
-                      Ответить
+                      {t('comments.reply')}
                     </button>
                   )}
                   {canEdit && (
@@ -177,7 +228,7 @@ export default function CommentList({
                       className="comment-menu-item"
                       onClick={() => startEdit(comment)}
                     >
-                      Изменить
+                      {t('comments.edit')}
                     </button>
                   )}
                   {canDelete && (
@@ -190,7 +241,7 @@ export default function CommentList({
                         onDelete(comment.id);
                       }}
                     >
-                      Удалить
+                      {t('comments.delete')}
                     </button>
                   )}
                 </div>
@@ -223,7 +274,7 @@ export default function CommentList({
                 onClick={() => submitEdit(comment.id)}
                 disabled={saving || !editContent.trim()}
               >
-                {saving ? 'Сохранение...' : 'Сохранить'}
+                {saving ? t('comments.saving') : t('comments.save')}
               </button>
               <button
                 type="button"
@@ -231,12 +282,12 @@ export default function CommentList({
                 onClick={cancelEdit}
                 disabled={saving}
               >
-                Отмена
+                {t('comments.cancel')}
               </button>
             </div>
           </div>
         ) : comment.is_deleted ? (
-          <p className="comment-tombstone">[комментарий удалён]</p>
+          <p className="comment-tombstone">{t('comments.deleted')}</p>
         ) : (
           <p>{comment.content}</p>
         )}
