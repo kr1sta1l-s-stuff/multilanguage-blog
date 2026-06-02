@@ -4,8 +4,9 @@ from apps.auth.api import router as auth_router
 from apps.publications.api import (
     comments_router,
     publication_comments_router,
-    publications_router,
     publication_likes_router,
+    publications_router,
+    tags_router,
 )
 from apps.users.api import router as users_router
 
@@ -18,3 +19,4 @@ router.include_router(publications_router, prefix="/publications")
 router.include_router(publication_comments_router, prefix="/publications")
 router.include_router(comments_router, prefix="/comments")
 router.include_router(publication_likes_router, prefix="/publications")
+router.include_router(tags_router, prefix="/tags")

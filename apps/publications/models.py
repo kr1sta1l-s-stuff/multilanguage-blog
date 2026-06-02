@@ -1,10 +1,34 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, query_expression, relationship
 
 from core.models import Base, SoftDeleteMixin, UUIDMixin
+
+
+class PublicationTag(Base):
+    __tablename__ = "publication_tags"
+    __table_args__ = (
+        Index("ix_publication_tags_tag_id", "tag_id"),
+    )
+
+    publication_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("publications.id"), primary_key=True
+    )
+    tag_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tags.id"), primary_key=True
+    )
+
+
+class Tag(Base, UUIDMixin):
+    __tablename__ = "tags"
+
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    slug: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class Publication(Base, UUIDMixin, SoftDeleteMixin):
@@ -23,7 +47,12 @@ class Publication(Base, UUIDMixin, SoftDeleteMixin):
     )
     images: Mapped[list["PublicationImages"]] = relationship(
         "PublicationImages",
-        back_populates="publication"
+        back_populates="publication",
+        primaryjoin=(
+            "and_(Publication.id == PublicationImages.publication_id, "
+            "PublicationImages.deleted_at.is_(None))"
+        ),
+        order_by="PublicationImages.position",
     )
     comments: Mapped[list["Comment"]] = relationship(
         "Comment",
@@ -38,6 +67,10 @@ class Publication(Base, UUIDMixin, SoftDeleteMixin):
     likes_count: Mapped[int] = query_expression()
     is_liked: Mapped[bool] = query_expression()
 
+    tags: Mapped[list["Tag"]] = relationship(
+        "Tag", secondary="publication_tags", lazy="raise"
+    )
+
 
 class PublicationImages(Base, UUIDMixin, SoftDeleteMixin):
     __tablename__ = "publication_images"
@@ -48,6 +81,7 @@ class PublicationImages(Base, UUIDMixin, SoftDeleteMixin):
         back_populates="images"
     )
     image_url: Mapped[str] = mapped_column(String(255), nullable=False)
+    position: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
 
 
 class Comment(Base, UUIDMixin, SoftDeleteMixin):
@@ -60,6 +94,12 @@ class Comment(Base, UUIDMixin, SoftDeleteMixin):
     content: Mapped[str] = mapped_column(String(2048), nullable=False)
     author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     publication_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("publications.id"), nullable=False)
+    thread_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("comments.id"), nullable=True
+    )
+    replied_at: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("comments.id"), nullable=True
+    )
 
     author: Mapped["User"] = relationship(  # noqa: F821
         "User",
@@ -70,6 +110,10 @@ class Comment(Base, UUIDMixin, SoftDeleteMixin):
         back_populates="comments"
     )
 
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
+
 
 class Like(Base, UUIDMixin, SoftDeleteMixin):
     __tablename__ = "likes"
@@ -77,7 +121,7 @@ class Like(Base, UUIDMixin, SoftDeleteMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     publication_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("publications.id"), nullable=False)
 
-    user: Mapped["User"] = relationship(
+    user: Mapped["User"] = relationship(  # noqa: F821
         "User",
         back_populates="likes"
     )

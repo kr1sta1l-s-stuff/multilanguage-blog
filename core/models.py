@@ -7,13 +7,17 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
+def _uuid7() -> uuid.UUID:
+    return uuid.UUID(bytes=uuid_utils.uuid7().bytes)
+
+
 class Base(DeclarativeBase):
     pass
 
 
 class UUIDMixin:
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid_utils.uuid7
+        UUID(as_uuid=True), primary_key=True, default=_uuid7
     )
 
 

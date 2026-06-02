@@ -5,6 +5,8 @@ from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.publications.api.dependencies import get_comment, get_publication_or_404, get_reply_target
+from apps.publications.models import Comment, Publication
 from apps.publications.schemas.responses import CommentResponse
 from apps.publications.services.comment import CommentCommandService, CommentQueryService
 from apps.users.enums import UserRights
@@ -41,27 +43,78 @@ async def get_comments(
             "model": ErrorResponse,
             "description": "You are not allowed to comment on this publication",
         },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Publication or reply target not found",
+        },
     },
 )
 async def create_comment(
-    publication_id: uuid.UUID,
     content: str = Form(..., min_length=1, max_length=2048),
+    publication: Publication = Depends(get_publication_or_404),
+    parent: Comment | None = Depends(get_reply_target),
     current_user: User = Depends(get_current_user),
     command_service: CommentCommandService = Depends(
         get_command_query_service(CommentCommandService)
     ),
 ) -> CommentResponse:
-    if len(content) < 1 or len(content) > 2048:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Comment content must be between 1 and 2048 characters",
-        )
     if not current_user.has_right(UserRights.CAN_COMMENT):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not allowed to comment on this publication",
         )
-    return await command_service.create(publication_id, content, current_user.id)
+    return await command_service.create(publication, content, current_user.id, parent)
+
+
+@comments_router.get(
+    "/{comment_id}/thread",
+    response_model=list[CommentResponse],
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Comment not found",
+        },
+    },
+)
+async def get_comment_thread(
+    comment_id: uuid.UUID,
+    query_service: CommentQueryService = Depends(
+        get_command_query_service(CommentQueryService)
+    ),
+) -> list[CommentResponse]:
+    thread = await query_service.get_thread(comment_id)
+    if not thread:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Comment not found",
+        )
+    return thread
+
+
+@comments_router.patch(
+    "/{comment_id}",
+    response_model=CommentResponse,
+    responses={
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "You are not allowed to edit this comment",
+        },
+    },
+)
+async def update_comment(
+    content: str = Form(..., min_length=1, max_length=2048),
+    comment: Comment = Depends(get_comment),
+    current_user: User = Depends(get_current_user),
+    command_service: CommentCommandService = Depends(
+        get_command_query_service(CommentCommandService)
+    ),
+) -> CommentResponse:
+    if comment.author_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to edit this comment",
+        )
+    return await command_service.update(comment, content)
 
 
 @comments_router.delete(
@@ -75,23 +128,18 @@ async def create_comment(
     },
 )
 async def delete_comment(
-    comment_id: uuid.UUID,
+    comment: Comment = Depends(get_comment),
     current_user: User = Depends(get_current_user),
-    query_service: CommentQueryService = Depends(
-        get_command_query_service(CommentQueryService)
-    ),
     command_service: CommentCommandService = Depends(
         get_command_query_service(CommentCommandService)
     ),
 ) -> None:
-    comment = await query_service.get_by_id(comment_id)
-    if (
-        (comment.author_id != current_user.id) or
-        (not current_user.has_right(UserRights.CAN_MODERATE_COMMENTS))
+    if (comment.author_id != current_user.id) and (
+        not current_user.has_right(UserRights.CAN_MODERATE_COMMENTS)
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not allowed to delete this comment",
         )
-    await command_service.delete(comment_id)
+    await command_service.delete(comment)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

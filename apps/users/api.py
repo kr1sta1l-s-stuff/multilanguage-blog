@@ -5,7 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.users.exceptions import UserError
 from apps.users.models.user import User
+from apps.users.schemas.requests import UpdateUserRequest
 from apps.users.schemas.responses import UserResponse
+from apps.users.services.command import UserCommandService
 from apps.users.services.query import UserQueryService
 from core.database import get_session
 from core.dependencies import get_current_user
@@ -56,3 +58,22 @@ async def get_user(
 )
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.patch(
+    "/me",
+    response_model=UserResponse,
+    responses={
+        401: {"model": ErrorResponse, "description": "Invalid or missing access token"},
+        403: {"model": ErrorResponse, "description": "No bearer token provided"},
+        422: {"model": ErrorResponse, "description": "Validation error"},
+    },
+)
+async def update_me(
+        payload: UpdateUserRequest,
+        current_user: User = Depends(get_current_user),
+        session: AsyncSession = Depends(get_session),
+) -> UserResponse:
+    return await UserCommandService(session).update_user(
+        current_user, language=payload.language
+    )

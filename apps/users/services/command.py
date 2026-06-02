@@ -21,3 +21,9 @@ class UserCommandService:
         self.session.add(password)
         await self.session.flush()
         return password
+
+    async def update_user(self, user: User, language: str) -> User:
+        user.language = language
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user

@@ -9,6 +9,7 @@ class PublicationCreateRequest(BaseModel):
     title: str
     content: str
     images: list[str]
+    tags: list[str] = []
 
     @field_validator("images")
     @classmethod

@@ -8,3 +8,5 @@ class UserResponse(BaseModel):
 
     id: uuid.UUID
     username: str
+    rights: int
+    language: str

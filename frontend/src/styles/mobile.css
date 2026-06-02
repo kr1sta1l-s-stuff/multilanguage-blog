@@ -1,0 +1,287 @@
+@media (max-width: 640px) {
+  body {
+    max-width: 100%;
+  }
+
+  .header {
+    padding: 0 0.75rem;
+  }
+
+  .nav {
+    height: 52px;
+  }
+
+  .nav-brand {
+    font-size: 1.1rem;
+  }
+
+  .nav-links {
+    gap: 0.4rem;
+  }
+
+  .nav-user-trigger {
+    font-size: 0.9rem;
+    padding: 0.35rem 0.5rem;
+  }
+
+  .nav-user-dropdown {
+    min-width: 160px;
+  }
+
+  .main {
+    margin: 1rem auto;
+    padding: 0 0.75rem;
+  }
+
+  .auth-page {
+    margin: 1rem auto;
+    padding: 0 0.25rem;
+  }
+
+  .auth-page h1 {
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+  }
+
+  .publications-page h1 {
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+  }
+
+  .publications-toolbar {
+    margin: 0 0 12px 0;
+  }
+
+  .publications-empty-card {
+    padding: 2rem 1.25rem;
+    border-radius: 20px;
+  }
+
+  .publications-empty-card h2 {
+    font-size: 20px;
+    line-height: 28px;
+  }
+
+  .publication-card {
+    margin: 0;
+    border-radius: 20px;
+  }
+
+  .publication-card-photo {
+    border-radius: 20px;
+  }
+
+  .publication-card-main-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .publication-card-main-body-no-photo {
+    padding-top: 16px;
+  }
+
+  .publication-card-main-body h2 {
+    width: auto;
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .publication-content {
+    font-size: 15px;
+    line-height: 20px;
+  }
+
+  .publication-show-more {
+    font-size: 13px;
+    padding-left: 40px;
+  }
+
+  .publication-meta {
+    font-size: 0.8rem;
+    gap: 0.5rem;
+    margin-top: 10px;
+    margin-bottom: 10px;
+  }
+
+  .publication-meta-actions {
+    gap: 12px;
+  }
+
+  .publication-page article {
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 1.25rem;
+  }
+
+  .publication-page h1 {
+    font-size: 1.5rem;
+  }
+
+  .publication-images img {
+    max-height: 280px;
+  }
+
+  .publication-body {
+    line-height: 1.6;
+  }
+
+  .photo-carousel-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .photo-carousel-btn-prev {
+    left: 8px;
+  }
+
+  .photo-carousel-btn-next {
+    right: 8px;
+  }
+
+  .photo-carousel-fullscreen .photo-carousel-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+
+  .photo-carousel-fullscreen-close {
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    font-size: 24px;
+  }
+
+  .photo-carousel-fullscreen .photo-carousel-counter {
+    top: 18px;
+    right: 60px;
+  }
+
+  .modal-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .modal-content {
+    border-radius: 0;
+    max-height: 100dvh;
+    height: 100dvh;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .modal-content > h1,
+  .modal-content > .create-publication-form {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .modal-content > h1 {
+    padding-top: 1rem;
+  }
+
+  .modal-content > .create-publication-form {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+  }
+
+  .modal-scroll {
+    padding: 1rem 1rem 0 1rem;
+    margin: 12px 0;
+  }
+
+  .modal-content h1 {
+    font-size: 1.35rem;
+    padding-right: 2.5rem;
+  }
+
+  .modal-close {
+    top: 8px;
+    right: 10px;
+    font-size: 26px;
+  }
+
+  .publication-modal-carousel {
+    aspect-ratio: 4 / 3;
+    border-radius: 6px;
+  }
+
+  .comments-section {
+    padding: 1rem 1rem 0 1rem;
+    border-radius: 12px;
+  }
+
+  .comments-section h2 {
+    font-size: 1.15rem;
+  }
+
+  .modal-content .comments-section {
+    padding: 0;
+  }
+
+  .comment-form {
+    padding: 1rem 0 calc(1rem + env(safe-area-inset-bottom, 0px)) 0;
+  }
+
+  .comment-form textarea {
+    font-size: 0.95rem;
+    min-height: 4.5rem;
+  }
+
+  .comment-form-reply-banner {
+    font-size: 0.8rem;
+  }
+
+  .comment-replies {
+    margin-left: 1rem;
+  }
+
+  .comment-edit-form textarea {
+    font-size: 0.95rem;
+  }
+
+  .comment-header {
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .comment-date {
+    font-size: 0.75rem;
+  }
+
+  .create-publication-actions {
+    flex-direction: column-reverse;
+  }
+
+  .create-publication-actions .btn {
+    width: 100%;
+  }
+
+  .image-picker-item,
+  .image-picker-add {
+    width: 80px;
+    height: 80px;
+  }
+
+  .pagination {
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .pagination-info {
+    width: 100%;
+    text-align: center;
+    order: 3;
+  }
+
+  .not-found-page {
+    padding: 2.5rem 0;
+  }
+
+  .not-found-page h1 {
+    font-size: 3rem;
+  }
+}
